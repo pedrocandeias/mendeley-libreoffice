@@ -1,5 +1,6 @@
 # Mendeley Cite for LibreOffice
 
+[![CI](https://github.com/pedrocandeias/mendeley-libreoffice/actions/workflows/ci.yml/badge.svg)](https://github.com/pedrocandeias/mendeley-libreoffice/actions/workflows/ci.yml)
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![LibreOffice Writer](https://img.shields.io/badge/LibreOffice-Writer-18A303.svg)
 ![Python](https://img.shields.io/badge/Python-3.x-3776AB.svg)
@@ -90,6 +91,10 @@ EOF
 (or simply use *Tools → Extensions… → Add* and pick the `.oxt`).
 
 Restart LibreOffice afterwards. A **Mendeley** menu appears in Writer.
+
+Prefer a prebuilt package? Download the latest `.oxt` from the
+[Releases](https://github.com/pedrocandeias/mendeley-libreoffice/releases)
+page — no need to build it yourself.
 
 Requires a LibreOffice build with Python scripting support (the default
 on Linux distributions and the TDF builds; on Debian/Ubuntu install
@@ -202,6 +207,21 @@ and style renderers are pure Python with no LibreOffice dependency, so
 they can be developed and tested from the command line (`python3 -m
 unittest discover -s tests`). New citation styles are self-contained
 classes in `src/python/pythonpath/mlo/styles.py`.
+
+## Releases
+
+Continuous integration runs the test suite and builds the `.oxt` on
+every push. To cut a release, bump the version in **both**
+`src/description.xml` and `src/python/pythonpath/mlo/__init__.py`, then
+push a matching tag:
+
+```sh
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+The release workflow verifies the tag matches those versions, rebuilds
+the extension, and publishes a GitHub release with the `.oxt` attached.
 
 ## License
 

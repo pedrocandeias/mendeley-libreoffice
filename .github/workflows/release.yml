@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Verify tag matches extension version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          desc="$(grep -oP '<version value="\K[^"]+' src/description.xml)"
+          init="$(grep -oP '__version__ = "\K[^"]+' src/python/pythonpath/mlo/__init__.py)"
+          echo "tag=$tag  description.xml=$desc  __init__.py=$init"
+          if [ "$tag" != "$desc" ] || [ "$tag" != "$init" ]; then
+            echo "::error::Tag $tag must match the version in description.xml ($desc) and mlo/__init__.py ($init). Bump both before tagging." >&2
+            exit 1
+          fi
+
+      - name: Run unit tests
+        run: python3 -m unittest discover -s tests
+
+      - name: Build extension
+        run: |
+          ./build.sh
+          version="${GITHUB_REF_NAME#v}"
+          cp dist/mendeley-libreoffice.oxt "dist/mendeley-libreoffice-${version}.oxt"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" \
+            "dist/mendeley-libreoffice-${version}.oxt" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes
