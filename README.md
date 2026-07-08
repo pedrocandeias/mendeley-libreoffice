@@ -14,6 +14,41 @@ bibliography that renumbers and restyles on refresh.
 > to describe interoperability. This is an independent, unofficial
 > project.
 
+## Overview
+
+Mendeley Cite for LibreOffice puts your reference library where your
+writing happens. If you've used the Mendeley Cite add-in for Microsoft
+Word, you already know the workflow — this brings that same experience to
+LibreOffice Writer, which has never had an official Mendeley integration
+of its own.
+
+Instead of copying references by hand or juggling a separate citation
+window, you write, place your cursor, and pull citations straight from
+your Mendeley library through a searchable picker. Filter by any Mendeley
+folder to narrow a large library down to the collection you're actually
+drawing from, select one or several references at once, and add page
+numbers or a prefix like "see" when you need them. The bibliography at
+the end of your document is generated for you and stays in sync: add,
+move, or delete a citation and a single Refresh renumbers everything,
+re-sorts the reference list, and re-formats every entry.
+
+It fits how researchers actually work. You can connect directly to your
+Mendeley account over the official API and sync your library — including
+its folder structure — or, if you'd rather not deal with API
+credentials, point it at a BibTeX file exported from Mendeley and work
+entirely offline. Five citation styles are built in — APA 7th, Harvard,
+Chicago 17th author-date, IEEE, and Vancouver — covering both
+author-date and numbered conventions, with automatic 2020a/2020b
+disambiguation and citation-range collapsing handled the way each style
+expects.
+
+Because every citation carries a snapshot of its own reference data
+embedded in the document, your files stay refreshable and portable even
+when the original library isn't at hand — and switching a finished
+manuscript from one style to another is a single menu click. It's a
+lightweight, dependency-free extension: install the `.oxt`, and a
+Mendeley menu appears in Writer.
+
 ## Features
 
 - **Mendeley menu and toolbar in Writer**: Insert Citation, Insert
