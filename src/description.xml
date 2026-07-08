@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<description xmlns="http://openoffice.org/extensions/description/2006"
+             xmlns:d="http://openoffice.org/extensions/description/2006"
+             xmlns:xlink="http://www.w3.org/1999/xlink">
+  <identifier value="org.mendeley.libreoffice"/>
+  <version value="0.1.0"/>
+  <platform value="all"/>
+  <display-name>
+    <name lang="en-US">Mendeley Cite for LibreOffice</name>
+  </display-name>
+  <extension-description>
+    <src lang="en-US" xlink:href="pkg-description/description-en.txt"/>
+  </extension-description>
+  <dependencies>
+    <OpenOffice.org-minimal-version value="4.1" d:name="OpenOffice.org 4.1"/>
+  </dependencies>
+</description>
