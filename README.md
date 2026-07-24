@@ -64,41 +64,71 @@ Mendeley menu appears in Writer.
 - **Built-in citation styles**: APA 7, Harvard (Cite Them Right),
   Chicago 17th author-date, IEEE, Vancouver.
 - **Live document model, like Mendeley in Word**: each citation is a
-  reference mark whose name embeds the cited records (compressed JSON),
-  so documents remain refreshable even without the library at hand.
-  Numeric styles renumber by order of appearance; author-date styles get
-  automatic `2020a`/`2020b` disambiguation; page locators, prefixes and
-  suffixes are supported; the bibliography lives in a named text section
-  and is rebuilt on every refresh.
+  bookmark (`MLO_C_<key>`) whose cluster payload — compressed JSON
+  embedding the cited records — is stored in user-defined document
+  properties (`MLO_DATA_<key>_n`, chunked to stay within Word's
+  255-character property limit), so documents remain refreshable even
+  without the library at hand. Numeric styles renumber by order of
+  appearance; author-date styles get automatic `2020a`/`2020b`
+  disambiguation; page locators, prefixes and suffixes are supported;
+  the bibliography is the text spanned by the `MLO_BIBLIOGRAPHY`
+  bookmark and is rebuilt on every refresh.
+- **DOCX-safe**: bookmarks and custom document properties survive
+  round-trips through the `.docx` filter in both LibreOffice and
+  Microsoft Word, so live citations are preserved whether you keep your
+  manuscript in `.odt` or `.docx`. Documents written by 0.1.x (which
+  stored citations in reference-mark names — an ODF-only construct) are
+  still read, and the next *Refresh* migrates them to the new format.
 
-## Install
+## Install (easy way — no terminal needed)
+
+1. **Download the extension.** Go to the
+   [Releases page](https://github.com/pedrocandeias/mendeley-libreoffice/releases/latest)
+   and, under **Assets**, click `mendeley-libreoffice.oxt` to download it.
+   (If the browser warns about an unknown file type, keep it — an `.oxt`
+   file is just a LibreOffice extension package.)
+2. **Open LibreOffice Writer.**
+3. In the menu bar, choose **Tools ▸ Extensions…** (in some versions:
+   *Tools ▸ Extension Manager…*).
+4. Click **Add…**, browse to your Downloads folder, select the
+   `mendeley-libreoffice.oxt` file you just downloaded and confirm.
+   Accept the license if asked.
+5. Click **Close**, then **quit LibreOffice completely and open it
+   again**.
+6. Open any Writer document — a **Mendeley** menu now appears in the
+   menu bar.
+
+**First use:** choose **Mendeley ▸ Settings**. The simplest setup is a
+BibTeX file: in Mendeley Reference Manager choose
+*File ▸ Export All ▸ BibTeX*, save the `.bib` file, and point the
+extension at it. No account sign-in or API keys are required for this
+mode.
+
+**If the Mendeley menu items do nothing** your LibreOffice build lacks
+Python scripting (rare; the default builds all include it). On
+Debian/Ubuntu, install the `libreoffice-script-provider-python` package
+and restart.
+
+**To remove or update** the extension, return to *Tools ▸ Extensions…*,
+select *Mendeley Cite for LibreOffice* and use **Remove** — or **Add…**
+the newer `.oxt` on top of it.
+
+## Install from source (developers)
 
 ```sh
-./build.sh
-unopkg add --force dist/mendeley-libreoffice.oxt   # or Tools > Extensions > Add
+./install.sh
 ```
 
-For the **snap** build of LibreOffice (where `unopkg` is not on PATH):
+This builds the `.oxt` and installs it, auto-detecting native, snap and
+flatpak LibreOffice installations. To remove it later:
 
 ```sh
-./build.sh
-snap run --shell libreoffice <<'EOF'
-"$SNAP/lib/libreoffice/program/unopkg" add --force \
-    "$HOME/dev/mendeley-libreoffice/dist/mendeley-libreoffice.oxt"
-EOF
+./install.sh --uninstall
 ```
 
-(or simply use *Tools → Extensions… → Add* and pick the `.oxt`).
-
-Restart LibreOffice afterwards. A **Mendeley** menu appears in Writer.
-
-Prefer a prebuilt package? Download the latest `.oxt` from the
-[Releases](https://github.com/pedrocandeias/mendeley-libreoffice/releases)
-page — no need to build it yourself.
-
-Requires a LibreOffice build with Python scripting support (the default
-on Linux distributions and the TDF builds; on Debian/Ubuntu install
-`libreoffice-script-provider-python` if the menu items do nothing).
+Alternatively, build and install by hand (`./build.sh`, then
+`unopkg add --force dist/mendeley-libreoffice.oxt`), or use
+*Tools ▸ Extensions… ▸ Add* and pick the freshly built `.oxt`.
 
 ## Usage
 
@@ -171,7 +201,8 @@ src/
     engine.py             ordering, numbering, disambiguation
     mendeley_api.py       OAuth2 + document fetch (stdlib only)
     config.py             config/tokens/library storage
-    document.py           reference marks, bibliography section, refresh
+    payload.py            cluster payload encoding + naming (no UNO)
+    document.py           bookmarks, payload properties, bibliography, refresh
     dialogs.py            runtime-built UNO dialogs
     actions.py            menu command implementations
 ```
@@ -184,9 +215,11 @@ python3 scripts/demo.py     # render the sample library in every style
 ```
 
 `scripts/uno_smoke.py` exercises the UNO document layer (marks,
-bibliography section, refresh/restyle) against a real headless
-LibreOffice listening on a UNO socket — see the script header for how
-to launch it.
+bibliography, refresh/restyle) against a real headless LibreOffice
+listening on a UNO socket — see the script header for how to launch it.
+`scripts/uno_docx_roundtrip.py` additionally saves the document as
+`.docx`, reloads it and restyles it, and checks that pre-0.2
+reference-mark citations are migrated on refresh.
 
 ## Known limitations
 
@@ -196,9 +229,10 @@ to launch it.
   body citations for numbering purposes.
 - The five styles cover the common cases but are not full CSL; styles
   live in `src/python/pythonpath/mlo/styles.py` and are easy to extend.
-- Documents are interoperable with themselves, not with the Word
-  plugin's field codes (Word ↔ LibreOffice round-tripping is out of
-  scope for now).
+- `.docx` files edited in Word keep their live citations (Word preserves
+  the bookmarks and custom properties), but the citations are not
+  recognised by the official Mendeley Cite add-in as its own — the two
+  plugins' citations coexist without converting into each other.
 
 ## Contributing
 

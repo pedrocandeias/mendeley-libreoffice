@@ -5,10 +5,11 @@ Run with LibreOffice's bundled python while a headless soffice is
 listening:  soffice --headless --accept="socket,host=localhost,port=2002;urp;"
 """
 
+import os
 import sys
 import time
 
-ROOT = "/home/pec/dev/mendeley-libreoffice"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT + "/src/python/pythonpath")
 
 import uno  # noqa: E402

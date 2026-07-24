@@ -3,7 +3,7 @@
              xmlns:d="http://openoffice.org/extensions/description/2006"
              xmlns:xlink="http://www.w3.org/1999/xlink">
   <identifier value="org.mendeley.libreoffice"/>
-  <version value="0.1.0"/>
+  <version value="0.2.0"/>
   <platform value="all"/>
   <display-name>
     <name lang="en-US">Mendeley Cite for LibreOffice</name>
