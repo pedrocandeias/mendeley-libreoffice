@@ -15,6 +15,8 @@ payload in their name, bibliography in a text section) are still read,
 and each Refresh migrates them to the bookmark format.
 """
 
+import contextlib
+
 import uno  # noqa: F401  (ensures we run inside LibreOffice)
 from com.sun.star.beans.PropertyAttribute import REMOVABLE
 from com.sun.star.text.ControlCharacter import PARAGRAPH_BREAK
@@ -41,6 +43,44 @@ def encode_cluster(cluster):
 
 def decode_cluster(name):
     return payload.decode_legacy_mark(name)
+
+
+# ---------------------------------------------------------------- editing
+
+@contextlib.contextmanager
+def batch_edit(doc, title):
+    """Group everything done inside into a single undo step.
+
+    A refresh rewrites every citation and the whole bibliography, which
+    would otherwise cost the user one Ctrl+Z per edit. Controllers are
+    locked for the duration too, so Writer neither redraws nor scrolls
+    while the document is being rewritten.
+
+    Undo contexts nest, so it is safe for a caller to wrap a sequence
+    that already uses this (the edits merge into the outer step).
+    """
+    undo = None
+    try:
+        undo = doc.getUndoManager()
+        undo.enterUndoContext(title)
+    except Exception:
+        undo = None
+    try:
+        doc.lockControllers()
+    except Exception:
+        pass
+    try:
+        yield
+    finally:
+        try:
+            doc.unlockControllers()
+        except Exception:
+            pass
+        if undo is not None:
+            try:
+                undo.leaveUndoContext()
+            except Exception:
+                pass
 
 
 # ---------------------------------------------------------------- properties
@@ -109,6 +149,34 @@ def insert_citation_mark(doc, cluster, rendered_text):
     _write_payload(doc, key, payload.encode(cluster))
 
 
+def _adopt_copied_citations(doc):
+    """Turn pasted citation copies into independent citations.
+
+    A pasted citation arrives as a renamed bookmark ("MLO_C_<key>_1")
+    with no payload of its own, so without this it would look live but
+    never refresh and never reach the bibliography. Each copy gets a
+    fresh key and its own copy of the source payload.
+
+    Copies pasted into a *different* document cannot be recovered — the
+    payload lives in document properties, which do not travel with the
+    clipboard — so those are left untouched.
+    """
+    bookmarks = doc.getBookmarks()
+    for name in list(bookmarks.getElementNames()):
+        source_key = payload.key_from_copied_bookmark(name)
+        if source_key is None:
+            continue
+        encoded = _read_payload(doc, source_key)
+        if not encoded:
+            continue
+        new_key = payload.new_key()
+        try:
+            _write_payload(doc, new_key, encoded)
+            bookmarks.getByName(name).setName(payload.bookmark_name(new_key))
+        except Exception:
+            _remove_payload(doc, new_key)
+
+
 def _collect_citations(doc):
     """Return [(kind, mark, key, cluster)] in document order (best effort).
 
@@ -143,35 +211,64 @@ def get_citation_marks(doc):
             for _, mark, _, cluster in _collect_citations(doc)]
 
 
+def _walk_text(text, by_name, ordered, depth=0):
+    """Append citations found in `text`, in reading order.
+
+    Recurses into table cells and into footnotes/endnotes at the point
+    where their anchor sits in the text, so a citation inside a table or
+    a note numbers according to where the reader meets it rather than
+    landing after the whole body.
+    """
+    if depth > 10:            # pathological nesting guard
+        return
+    enum = text.createEnumeration()
+    while enum.hasMoreElements():
+        element = enum.nextElement()
+        try:
+            if element.supportsService("com.sun.star.text.TextTable"):
+                for cell_name in element.getCellNames():
+                    _walk_text(element.getCellByName(cell_name),
+                               by_name, ordered, depth + 1)
+                continue
+            if not element.supportsService("com.sun.star.text.Paragraph"):
+                continue
+        except Exception:
+            continue
+        portions = element.createEnumeration()
+        while portions.hasMoreElements():
+            portion = portions.nextElement()
+            try:
+                ptype = portion.TextPortionType
+                if ptype == "Bookmark":
+                    if not portion.IsStart:
+                        continue
+                    name = portion.Bookmark.getName()
+                elif ptype == "ReferenceMark":
+                    if not portion.IsStart:
+                        continue
+                    name = portion.ReferenceMark.getName()
+                elif ptype == "Footnote":
+                    # Footnotes and endnotes both surface here.
+                    _walk_text(portion.Footnote, by_name, ordered, depth + 1)
+                    continue
+                else:
+                    continue
+            except Exception:
+                continue
+            entry = by_name.pop(name, None)
+            if entry is not None:
+                ordered.append(entry)
+
+
 def _order_by_enumeration(doc, found):
-    """Order citations by enumerating body paragraphs/portions."""
+    """Order citations by walking the document in reading order."""
     try:
         by_name = dict((entry[1].getName(), entry) for entry in found)
         ordered = []
-        para_enum = doc.getText().createEnumeration()
-        while para_enum.hasMoreElements():
-            para = para_enum.nextElement()
-            if not para.supportsService("com.sun.star.text.Paragraph"):
-                continue
-            portions = para.createEnumeration()
-            while portions.hasMoreElements():
-                portion = portions.nextElement()
-                try:
-                    if portion.TextPortionType == "Bookmark":
-                        if not portion.IsStart:
-                            continue
-                        name = portion.Bookmark.getName()
-                    elif portion.TextPortionType == "ReferenceMark":
-                        if not portion.IsStart:
-                            continue
-                        name = portion.ReferenceMark.getName()
-                    else:
-                        continue
-                except Exception:
-                    continue
-                if name in by_name:
-                    ordered.append(by_name.pop(name))
-        ordered.extend(by_name.values())   # footnote/frame marks at the end
+        _walk_text(doc.getText(), by_name, ordered)
+        # Anything unreachable by the walk (e.g. citations in frames or
+        # headers) keeps a stable position at the end.
+        ordered.extend(by_name.values())
         return ordered
     except Exception:
         return None
@@ -278,24 +375,26 @@ def refresh_document(doc, style, library_records=None):
     """
     from . import engine
     lib = dict((r["id"], r) for r in (library_records or []))
-    cites = _collect_citations(doc)
-    clusters = []
-    for _, _, _, cluster in cites:
-        for it in cluster.get("items", []):
-            rid = it.get("rec", {}).get("id")
-            if rid in lib:
-                it["rec"] = lib[rid]
-        clusters.append(cluster)
-    rendered, entries = engine.process(clusters, style)
-    keep_keys = set()
-    for (kind, mark, key, cluster), text in zip(cites, rendered):
-        try:
-            keep_keys.add(_replace_citation(doc, kind, mark, key,
-                                            cluster, text))
-        except Exception:
-            if key is not None:
-                keep_keys.add(key)
-            continue
-    _gc_payloads(doc, keep_keys)
-    updated_bib = update_bibliography(doc, entries)
+    with batch_edit(doc, "Mendeley: refresh citations"):
+        _adopt_copied_citations(doc)
+        cites = _collect_citations(doc)
+        clusters = []
+        for _, _, _, cluster in cites:
+            for it in cluster.get("items", []):
+                rid = it.get("rec", {}).get("id")
+                if rid in lib:
+                    it["rec"] = lib[rid]
+            clusters.append(cluster)
+        rendered, entries = engine.process(clusters, style)
+        keep_keys = set()
+        for (kind, mark, key, cluster), text in zip(cites, rendered):
+            try:
+                keep_keys.add(_replace_citation(doc, kind, mark, key,
+                                                cluster, text))
+            except Exception:
+                if key is not None:
+                    keep_keys.add(key)
+                continue
+        _gc_payloads(doc, keep_keys)
+        updated_bib = update_bibliography(doc, entries)
     return len(cites), updated_bib

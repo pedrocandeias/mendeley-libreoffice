@@ -45,6 +45,19 @@ class TestPayload(unittest.TestCase):
         self.assertIsNone(payload.key_from_bookmark("MLO_C_XYZ"))
         self.assertIsNone(payload.key_from_bookmark("SomeBookmark"))
 
+    def test_key_from_copied_bookmark(self):
+        key = payload.new_key()
+        # LibreOffice renames pasted duplicates MLO_C_<key>_1, _2, ...
+        self.assertEqual(
+            payload.key_from_copied_bookmark("MLO_C_%s_1" % key), key)
+        self.assertEqual(
+            payload.key_from_copied_bookmark("MLO_C_%s_23" % key), key)
+        # An untouched citation is not a copy.
+        self.assertIsNone(payload.key_from_copied_bookmark("MLO_C_" + key))
+        self.assertIsNone(payload.key_from_copied_bookmark("MLO_C_XYZ_1"))
+        self.assertIsNone(payload.key_from_copied_bookmark("MLO_C_%s_x" % key))
+        self.assertIsNone(payload.key_from_copied_bookmark("SomeBookmark"))
+
     def test_key_from_prop(self):
         key = payload.new_key()
         self.assertEqual(payload.key_from_prop("MLO_DATA_%s_0" % key), key)

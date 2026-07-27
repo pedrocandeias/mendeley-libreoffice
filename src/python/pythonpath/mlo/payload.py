@@ -65,7 +65,26 @@ def key_from_bookmark(name):
     if not name.startswith(CITE_BOOKMARK_PREFIX):
         return None
     key = name[len(CITE_BOOKMARK_PREFIX):]
-    if len(key) == 8 and all(c in "0123456789abcdef" for c in key):
+    return key if _is_key(key) else None
+
+
+def _is_key(key):
+    return len(key) == 8 and all(c in "0123456789abcdef" for c in key)
+
+
+def key_from_copied_bookmark(name):
+    """Return the source key of a pasted citation bookmark, or None.
+
+    Bookmark names are unique, so pasting a citation makes LibreOffice
+    rename the copy to "MLO_C_<key>_1" (then _2, ...). Such a copy still
+    points at the original's payload; refresh_document turns it into an
+    independent citation of its own.
+    """
+    if not name.startswith(CITE_BOOKMARK_PREFIX):
+        return None
+    rest = name[len(CITE_BOOKMARK_PREFIX):]
+    key, _, suffix = rest.partition("_")
+    if suffix and suffix.isdigit() and _is_key(key):
         return key
     return None
 

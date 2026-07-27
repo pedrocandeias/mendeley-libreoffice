@@ -85,7 +85,7 @@ done
 echo "==> Running UNO tests"
 failed=""
 for test in uno_smoke uno_docx_roundtrip uno_word_import_test \
-            uno_dispatch_check; do
+            uno_editing_test uno_dispatch_check; do
     echo "--- $test"
     if "$PYTHON" "scripts/$test.py" "$PORT"; then
         :

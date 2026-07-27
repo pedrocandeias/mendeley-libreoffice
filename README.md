@@ -73,6 +73,16 @@ Mendeley menu appears in Writer.
   disambiguation; page locators, prefixes and suffixes are supported;
   the bibliography is the text spanned by the `MLO_BIBLIOGRAPHY`
   bookmark and is rebuilt on every refresh.
+- **One undo step per command**: inserting a citation or refreshing a
+  long document rewrites every citation and the whole bibliography, but
+  a single *Ctrl+Z* takes it all back — the edits are grouped into one
+  undo action and the view is locked while they run, so Writer neither
+  flickers nor scrolls around.
+- **Copy and paste works**: pasting a citation gives the copy its own
+  identity on the next refresh, so it renders, renumbers and reaches the
+  bibliography like any other citation instead of becoming dead text.
+  (Pasting into a *different* document cannot carry the reference data,
+  which lives in the source document's properties.)
 - **Import from Mendeley Cite (Word)**: documents whose citations were
   inserted by the official Mendeley Cite add-in for Microsoft Word can
   be converted in place. The add-in stores each citation in a content
@@ -94,7 +104,7 @@ Mendeley menu appears in Writer.
 
 1. **Download the extension.** Go to the
    [Releases page](https://github.com/pedrocandeias/mendeley-libreoffice/releases/latest)
-   and, under **Assets**, click the `mendeley-libreoffice-x.y.z.oxt` file (e.g. `mendeley-libreoffice-0.3.2.oxt`) to download it.
+   and, under **Assets**, click the `mendeley-libreoffice-x.y.z.oxt` file (e.g. `mendeley-libreoffice-0.4.0.oxt`) to download it.
    (If the browser warns about an unknown file type, keep it — an `.oxt`
    file is just a LibreOffice extension package.)
 2. **Open LibreOffice Writer.**
@@ -258,6 +268,9 @@ soffice — see each script's header:
   checks that pre-0.2 reference-mark citations migrate on refresh.
 - `uno_word_import_test.py` — builds Word-style content controls,
   converts them and checks the import is idempotent.
+- `uno_editing_test.py` — a refresh is one undo step, citations in
+  tables and footnotes number in reading order, and pasted copies are
+  adopted as independent citations.
 - `uno_dispatch_check.py` — every `org.mendeley.lo:*` command resolves
   to the protocol handler (requires the extension to be installed).
 
@@ -265,8 +278,9 @@ soffice — see each script's header:
 
 - Bibliography entries are rendered as plain text — no italic journal
   or book titles yet.
-- Citations inside footnotes/frames refresh correctly but sort after
-  body citations for numbering purposes.
+- Citations inside text frames, headers and footers refresh correctly
+  but sort after body citations for numbering purposes. Citations in
+  tables and footnotes/endnotes are numbered in reading order.
 - The five styles cover the common cases but are not full CSL; styles
   live in `src/python/pythonpath/mlo/styles.py` and are easy to extend.
 - Importing from Mendeley Cite (Word) leaves one empty, untagged content
@@ -296,8 +310,8 @@ every push. To cut a release, bump the version in **both**
 push a matching tag:
 
 ```sh
-git tag v0.3.2
-git push origin v0.3.2
+git tag v0.4.0
+git push origin v0.4.0
 ```
 
 The release workflow verifies the tag matches those versions, rebuilds

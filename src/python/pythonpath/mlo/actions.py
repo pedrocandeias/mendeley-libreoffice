@@ -51,21 +51,24 @@ def insert_citation(ctx, frame):
         return
     cluster = {"items": items}
     # Render with only this cluster first for the inserted text, then do
-    # a full refresh so numbering/disambiguation stay consistent.
-    rendered, _ = engine.process([cluster], _current_style())
-    document.insert_citation_mark(doc, cluster, rendered[0])
-    document.refresh_document(doc, _current_style(), records)
+    # a full refresh so numbering/disambiguation stay consistent. Both
+    # are one undo step, so Ctrl+Z removes the citation in one go.
+    with document.batch_edit(doc, "Mendeley: insert citation"):
+        rendered, _ = engine.process([cluster], _current_style())
+        document.insert_citation_mark(doc, cluster, rendered[0])
+        document.refresh_document(doc, _current_style(), records)
 
 
 def insert_bibliography(ctx, frame):
     doc = _doc(frame)
-    document.insert_bibliography_section(doc)
-    try:
-        cfg = config.load_config()
-        records = config.load_library(cfg)
-    except Exception:
-        records = None
-    document.refresh_document(doc, _current_style(), records)
+    with document.batch_edit(doc, "Mendeley: insert bibliography"):
+        document.insert_bibliography_section(doc)
+        try:
+            cfg = config.load_config()
+            records = config.load_library(cfg)
+        except Exception:
+            records = None
+        document.refresh_document(doc, _current_style(), records)
 
 
 def refresh(ctx, frame):
@@ -85,7 +88,14 @@ def refresh(ctx, frame):
 def import_word(ctx, frame):
     doc = _doc(frame)
     from . import word_import
-    n, bib = word_import.convert_document(doc)
+    with document.batch_edit(doc, "Mendeley: import from Word"):
+        n, bib = word_import.convert_document(doc)
+        if n or bib:
+            try:
+                records = config.load_library(config.load_config())
+            except Exception:
+                records = None  # snapshots in the citations suffice
+            document.refresh_document(doc, _current_style(), records)
     if n == 0 and not bib:
         dialogs.message_box(
             ctx, frame,
@@ -94,19 +104,14 @@ def import_word(ctx, frame):
             "were inserted with the Mendeley Cite add-in for Microsoft "
             "Word.")
         return
-    try:
-        records = config.load_library(config.load_config())
-    except Exception:
-        records = None   # snapshots embedded in the citations suffice
-    document.refresh_document(doc, _current_style(), records)
     msg = ("Imported %d citation cluster%s from Mendeley Cite (Word)."
            % (n, "" if n == 1 else "s"))
     msg += ("\nThe bibliography was converted as well."
             if bib else "\nNo Word bibliography was found — use "
             "Mendeley > Insert Bibliography if you need one.")
     msg += ("\n\nThis conversion is one-way: the Word add-in will no "
-            "longer recognise these citations. Save the document to keep "
-            "the result — or close it without saving to undo everything.")
+            "longer recognise these citations. Undo (Ctrl+Z) reverses "
+            "the whole import if you change your mind.")
     dialogs.message_box(ctx, frame, msg, "Import from Mendeley Cite (Word)")
 
 
