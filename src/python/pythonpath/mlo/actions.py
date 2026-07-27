@@ -82,6 +82,34 @@ def refresh(ctx, frame):
     dialogs.message_box(ctx, frame, msg)
 
 
+def import_word(ctx, frame):
+    doc = _doc(frame)
+    from . import word_import
+    n, bib = word_import.convert_document(doc)
+    if n == 0 and not bib:
+        dialogs.message_box(
+            ctx, frame,
+            "No Mendeley Cite (Word) citations were found in this "
+            "document.\n\nThis command converts documents whose citations "
+            "were inserted with the Mendeley Cite add-in for Microsoft "
+            "Word.")
+        return
+    try:
+        records = config.load_library(config.load_config())
+    except Exception:
+        records = None   # snapshots embedded in the citations suffice
+    document.refresh_document(doc, _current_style(), records)
+    msg = ("Imported %d citation cluster%s from Mendeley Cite (Word)."
+           % (n, "" if n == 1 else "s"))
+    msg += ("\nThe bibliography was converted as well."
+            if bib else "\nNo Word bibliography was found — use "
+            "Mendeley > Insert Bibliography if you need one.")
+    msg += ("\n\nThis conversion is one-way: the Word add-in will no "
+            "longer recognise these citations. Save the document to keep "
+            "the result — or close it without saving to undo everything.")
+    dialogs.message_box(ctx, frame, msg, "Import from Mendeley Cite (Word)")
+
+
 def settings(ctx, frame):
     cfg = config.load_config()
 
@@ -117,6 +145,7 @@ COMMANDS = {
     "InsertCitation": insert_citation,
     "InsertBibliography": insert_bibliography,
     "Refresh": refresh,
+    "ImportWord": import_word,
     "Settings": settings,
     "About": about,
 }

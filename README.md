@@ -84,7 +84,7 @@ Mendeley menu appears in Writer.
 
 1. **Download the extension.** Go to the
    [Releases page](https://github.com/pedrocandeias/mendeley-libreoffice/releases/latest)
-   and, under **Assets**, click `mendeley-libreoffice.oxt` to download it.
+   and, under **Assets**, click the `mendeley-libreoffice-x.y.z.oxt` file (e.g. `mendeley-libreoffice-0.2.0.oxt`) to download it.
    (If the browser warns about an unknown file type, keep it — an `.oxt`
    file is just a LibreOffice extension package.)
 2. **Open LibreOffice Writer.**

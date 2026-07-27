@@ -58,6 +58,20 @@
               <value>com.sun.star.text.TextDocument</value>
             </prop>
           </node>
+          <node oor:name="m03b" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string">
+              <value>org.mendeley.lo:ImportWord</value>
+            </prop>
+            <prop oor:name="Title" oor:type="xs:string">
+              <value xml:lang="en-US">Import from Mendeley Cite (~Word)...</value>
+            </prop>
+            <prop oor:name="Target" oor:type="xs:string">
+              <value>_self</value>
+            </prop>
+            <prop oor:name="Context" oor:type="xs:string">
+              <value>com.sun.star.text.TextDocument</value>
+            </prop>
+          </node>
           <node oor:name="m04" oor:op="replace">
             <prop oor:name="URL" oor:type="xs:string">
               <value>private:separator</value>
