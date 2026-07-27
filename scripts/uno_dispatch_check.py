@@ -34,8 +34,8 @@ def main():
         "com.sun.star.util.URLTransformer", ctx)
 
     ok = True
-    for cmd in ("InsertCitation", "InsertBibliography", "Refresh",
-                "ImportWord", "Settings", "About"):
+    for cmd in ("InsertCitation", "EditCitation", "InsertBibliography",
+                "Refresh", "ImportWord", "Settings", "About"):
         url = UnoURL()
         url.Complete = "org.mendeley.lo:" + cmd
         _, url = transformer.parseStrict(url)

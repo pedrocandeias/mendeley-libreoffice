@@ -52,8 +52,15 @@ Mendeley menu appears in Writer.
 
 ## Features
 
-- **Mendeley menu and toolbar in Writer**: Insert Citation, Insert
-  Bibliography, Refresh, Import from Mendeley Cite (Word), Settings.
+- **Mendeley menu and toolbar in Writer**: Insert Citation, Edit
+  Citation, Insert Bibliography, Refresh, Import from Mendeley Cite
+  (Word), Settings.
+- **Edit an existing citation**: click inside a citation and choose
+  *Edit Citation* to change its page numbers, add or remove works, or
+  adjust the prefix and suffix — no need to delete and re-insert. The
+  picker opens with the citation's works already selected and its fields
+  filled in. Works cited in the document but missing from your library
+  are still listed, using the snapshot stored alongside the citation.
 - **Two library sources**
   - **BibTeX file** exported from Mendeley Reference Manager
     (*File → Export All → BibTeX*). Works offline, no API keys needed —
@@ -104,7 +111,7 @@ Mendeley menu appears in Writer.
 
 1. **Download the extension.** Go to the
    [Releases page](https://github.com/pedrocandeias/mendeley-libreoffice/releases/latest)
-   and, under **Assets**, click the `mendeley-libreoffice-x.y.z.oxt` file (e.g. `mendeley-libreoffice-0.4.0.oxt`) to download it.
+   and, under **Assets**, click the `mendeley-libreoffice-x.y.z.oxt` file (e.g. `mendeley-libreoffice-0.5.0.oxt`) to download it.
    (If the browser warns about an unknown file type, keep it — an `.oxt`
    file is just a LibreOffice extension package.)
 2. **Open LibreOffice Writer.**
@@ -168,8 +175,14 @@ Alternatively, build and install by hand (`./build.sh`, then
    the API source, or from the `mendeley-groups` BibTeX field when
    present (Mendeley Desktop exports it; Reference Manager currently
    does not).
-3. **Mendeley → Insert Bibliography** at the end of the document.
-4. **Mendeley → Refresh Citations and Bibliography** after adding,
+3. To change a citation later, click anywhere inside it and choose
+   **Mendeley → Edit Citation…**. The picker reopens with that
+   citation's works selected and its page/prefix/suffix filled in;
+   Ctrl-click to add or remove works. Leaving the page, prefix and
+   suffix fields untouched preserves whatever each work already had, so
+   a citation whose works carry different page numbers keeps them.
+4. **Mendeley → Insert Bibliography** at the end of the document.
+5. **Mendeley → Refresh Citations and Bibliography** after adding,
    moving or deleting citations, or after changing the style.
 
 **Coming from Word?** Open the `.docx` in Writer and choose
@@ -269,8 +282,9 @@ soffice — see each script's header:
 - `uno_word_import_test.py` — builds Word-style content controls,
   converts them and checks the import is idempotent.
 - `uno_editing_test.py` — a refresh is one undo step, citations in
-  tables and footnotes number in reading order, and pasted copies are
-  adopted as independent citations.
+  tables and footnotes number in reading order, pasted copies are
+  adopted as independent citations, and Edit Citation finds the
+  citation at the cursor and stores changes to it.
 - `uno_dispatch_check.py` — every `org.mendeley.lo:*` command resolves
   to the protocol handler (requires the extension to be installed).
 
@@ -310,8 +324,8 @@ every push. To cut a release, bump the version in **both**
 push a matching tag:
 
 ```sh
-git tag v0.4.0
-git push origin v0.4.0
+git tag v0.5.0
+git push origin v0.5.0
 ```
 
 The release workflow verifies the tag matches those versions, rebuilds

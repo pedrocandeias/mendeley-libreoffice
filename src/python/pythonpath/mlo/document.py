@@ -274,6 +274,44 @@ def _order_by_enumeration(doc, found):
         return None
 
 
+def find_citation_at(doc, text_range):
+    """Return (kind, mark, key, cluster) for the citation covering
+    text_range, or None.
+
+    Used by Edit Citation to work out which citation the cursor sits in.
+    A collapsed cursor touching either edge of the citation counts, so
+    clicking just after the closing bracket still finds it.
+    """
+    for entry in _collect_citations(doc):
+        mark = entry[1]
+        try:
+            anchor = mark.getAnchor()
+            text = anchor.getText()
+            # Throws when the ranges live in different texts (a footnote
+            # versus the body, say), which means it is not this citation.
+            starts = text.compareRegionStarts(anchor, text_range)
+            ends = text.compareRegionEnds(anchor, text_range)
+        except Exception:
+            continue
+        if starts >= 0 and ends <= 0:
+            return entry
+    return None
+
+
+def set_citation_cluster(doc, kind, mark, key, cluster):
+    """Store an edited cluster on an existing citation.
+
+    The rendered text is left alone — the caller refreshes afterwards,
+    which re-renders every citation anyway. Legacy reference marks are
+    migrated to the bookmark format on the way through.
+    """
+    if kind == _KIND_BOOKMARK and key is not None:
+        _write_payload(doc, key, payload.encode(cluster))
+        return key
+    return _replace_citation(doc, kind, mark, key, cluster,
+                             mark.getAnchor().getString())
+
+
 def _replace_citation(doc, kind, mark, key, cluster, new_text):
     """Replace a citation's text and payload; returns the key in use.
 

@@ -137,18 +137,33 @@ def _matches(rec, query):
     return all(tok in hay for tok in query.lower().split())
 
 
-def insert_citation_dialog(ctx, records):
+def insert_citation_dialog(ctx, records, preset=None):
     """Show the search/pick dialog.
+
+    preset, when given, is an existing cluster's item list; the dialog
+    then edits that citation — its works start selected and its page /
+    prefix / suffix fields start filled in.
 
     Returns a list of {'rec', 'locator', 'prefix', 'suffix'} or None.
     """
+    preset_items = list(preset or [])
+    editing = bool(preset_items)
+    # A cited work may be missing from the library (deleted there, or the
+    # library is unavailable), so fall back to the snapshot stored in the
+    # document — otherwise editing would silently drop it.
+    known = set(r.get("id") for r in records)
+    records = list(records) + [it["rec"] for it in preset_items
+                               if it.get("rec", {}).get("id") not in known]
     records = sorted(records, key=lambda r: (
         (r.get("authors") or [{"family": "￿"}])[0]["family"].lower(),
         r.get("year") or 9999))
     collections = sorted(set(
         c for r in records for c in (r.get("collections") or [])))
+    preset_ids = [it["rec"].get("id") for it in preset_items]
 
-    dialog, model = make_dialog(ctx, "Insert Citation — Mendeley", 300, 200)
+    dialog, model = make_dialog(
+        ctx, "Edit Citation — Mendeley" if editing
+        else "Insert Citation — Mendeley", 300, 200)
 
     add_control(model, "FixedText", "lblSearch", 8, 8, 60, 10,
                 Label="Search library:")
@@ -172,8 +187,8 @@ def insert_citation_dialog(ctx, records):
                 Label="Suffix:")
     add_control(model, "Edit", "suffix", 240, 150, 52, 12)
     add_control(model, "Button", "ok", 176, 178, 55, 15,
-                Label="Insert", PushButtonType=_button_type("OK"),
-                DefaultButton=True)
+                Label="Save" if editing else "Insert",
+                PushButtonType=_button_type("OK"), DefaultButton=True)
     add_control(model, "Button", "cancel", 237, 178, 55, 15,
                 Label="Cancel", PushButtonType=_button_type("CANCEL"))
 
@@ -191,9 +206,26 @@ def insert_citation_dialog(ctx, records):
             coll_ctrl.addItem(name, i + 1)
         coll_ctrl.selectItemPos(0, True)
     shown = []          # records currently in the listbox
+    chosen_ids = [i for i in preset_ids if i]   # survives refiltering
+    updating = []       # re-entrancy guard while rebuilding the list
     MAX_SHOWN = 300
 
+    def remember_selection():
+        """Track picks by record id so a new search cannot lose them."""
+        if updating:
+            return
+        visible = [r.get("id") for r in shown]
+        picked = [shown[p].get("id") for p in list_ctrl.getSelectedItemsPos()
+                  if 0 <= p < len(shown)]
+        for rid in picked:
+            if rid not in chosen_ids:
+                chosen_ids.append(rid)
+        for rid in visible:
+            if rid not in picked and rid in chosen_ids:
+                chosen_ids.remove(rid)
+
     def refilter_safe():
+        remember_selection()
         query = search_ctrl.getText().strip()
         wanted = None
         if coll_ctrl is not None:
@@ -201,7 +233,14 @@ def insert_citation_dialog(ctx, records):
             if pos > 0:
                 wanted = collections[pos - 1]
         del shown[:]
+        # Already-picked works stay listed whatever the filter says, so
+        # neither a search nor the MAX_SHOWN cap can drop them.
         for rec in records:
+            if rec.get("id") in chosen_ids:
+                shown.append(rec)
+        for rec in records:
+            if rec.get("id") in chosen_ids:
+                continue
             if wanted is not None and \
                     wanted not in (rec.get("collections") or []):
                 continue
@@ -209,32 +248,47 @@ def insert_citation_dialog(ctx, records):
                 shown.append(rec)
                 if len(shown) >= MAX_SHOWN:
                     break
-        lm = list_ctrl.getModel()
+        updating.append(True)
         try:
-            lm.StringItemList = tuple(_record_label(r) for r in shown)
-        except Exception:
-            lm.setPropertyValue("StringItemList", uno.Any(
-                "[]string", tuple(_record_label(r) for r in shown)))
+            lm = list_ctrl.getModel()
+            try:
+                lm.StringItemList = tuple(_record_label(r) for r in shown)
+            except Exception:
+                lm.setPropertyValue("StringItemList", uno.Any(
+                    "[]string", tuple(_record_label(r) for r in shown)))
+            for pos, rec in enumerate(shown):
+                if rec.get("id") in chosen_ids:
+                    list_ctrl.selectItemPos(pos, True)
+        finally:
+            updating.pop()
 
     search_ctrl.addTextListener(_TextChange(refilter_safe))
+    list_ctrl.addItemListener(_ItemChange(remember_selection))
     if coll_ctrl is not None:
         coll_ctrl.addItemListener(_ItemChange(refilter_safe))
+    if editing:
+        first = preset_items[0]
+        dialog.getControl("pages").setText(first.get("locator", "") or "")
+        dialog.getControl("prefix").setText(first.get("prefix", "") or "")
+        dialog.getControl("suffix").setText(first.get("suffix", "") or "")
     refilter_safe()
 
     result = dialog.execute()
     if result != 1:
         dialog.dispose()
         return None
-    selected = list(list_ctrl.getSelectedItemsPos())
+    remember_selection()
     locator = dialog.getControl("pages").getText().strip()
     prefix = dialog.getControl("prefix").getText().strip()
     suffix = dialog.getControl("suffix").getText().strip()
     dialog.dispose()
-    items = []
-    for pos in selected:
-        if 0 <= pos < len(shown):
-            items.append({"rec": shown[pos], "locator": locator,
-                          "prefix": prefix, "suffix": suffix})
+
+    by_id = {}
+    for rec in records:
+        by_id.setdefault(rec.get("id"), rec)
+    from . import engine
+    items = engine.build_cluster_items(chosen_ids, by_id, locator, prefix,
+                                       suffix, preset_items)
     return items or None
 
 

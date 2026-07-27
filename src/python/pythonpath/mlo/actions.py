@@ -59,6 +59,30 @@ def insert_citation(ctx, frame):
         document.refresh_document(doc, _current_style(), records)
 
 
+def edit_citation(ctx, frame):
+    doc = _doc(frame)
+    view_cursor = doc.getCurrentController().getViewCursor()
+    found = document.find_citation_at(doc, view_cursor)
+    if found is None:
+        dialogs.message_box(
+            ctx, frame,
+            "No Mendeley citation at the cursor.\n\nClick inside a "
+            "citation you inserted with this extension, then choose "
+            "Edit Citation again.", "Edit Citation")
+        return
+    kind, mark, key, cluster = found
+    records = _load_library_or_setup(ctx, frame)
+    if records is None:
+        records = []       # editing still works from the stored snapshots
+    items = dialogs.insert_citation_dialog(ctx, records,
+                                           preset=cluster.get("items", []))
+    if not items:
+        return
+    with document.batch_edit(doc, "Mendeley: edit citation"):
+        document.set_citation_cluster(doc, kind, mark, key, {"items": items})
+        document.refresh_document(doc, _current_style(), records or None)
+
+
 def insert_bibliography(ctx, frame):
     doc = _doc(frame)
     with document.batch_edit(doc, "Mendeley: insert bibliography"):
@@ -148,6 +172,7 @@ def about(ctx, frame):
 
 COMMANDS = {
     "InsertCitation": insert_citation,
+    "EditCitation": edit_citation,
     "InsertBibliography": insert_bibliography,
     "Refresh": refresh,
     "ImportWord": import_word,

@@ -166,6 +166,82 @@ def test_pasted_citation_adopted(desktop, by_id, records):
     return ok
 
 
+def test_edit_citation(desktop, by_id, records):
+    """find_citation_at + set_citation_cluster, as Edit Citation uses them."""
+    from mlo import document, styles
+    doc = new_doc(desktop)
+    text = doc.getText()
+    vc = doc.getCurrentController().getViewCursor()
+    ok = True
+
+    text.insertString(text.getEnd(), "Alpha ", False)
+    cite_at_end(doc, by_id, "smith2020deep")
+    text.insertString(text.getEnd(), " beta ", False)
+    cite_at_end(doc, by_id, "garcia2018stats")
+    text.insertString(text.getEnd(), " gamma.", False)
+    doc.getCurrentController().getViewCursor().gotoRange(text.getEnd(), False)
+    document.insert_bibliography_section(doc)
+    document.refresh_document(doc, styles.get_style("apa"), records)
+
+    # Put the cursor inside the first citation.
+    first_mark = document.get_citation_marks(doc)[0][0]
+    vc.gotoRange(first_mark.getAnchor(), False)
+    vc.goRight(1, False)
+    found = document.find_citation_at(doc, vc)
+    ok &= check("citation found at the cursor", found is not None)
+    if found is not None:
+        ok &= check("found the right citation",
+                    found[3]["items"][0]["rec"]["id"] == "smith2020deep")
+
+    # Cursor in plain text belongs to no citation.
+    vc.gotoRange(text.getEnd(), False)
+    ok &= check("no citation in plain text",
+                document.find_citation_at(doc, vc) is None)
+
+    # Edit it: add a second work and a page locator.
+    kind, mark, key, cluster = found
+    new_cluster = {"items": [
+        {"rec": by_id["smith2020deep"], "locator": "42",
+         "prefix": "", "suffix": ""},
+        {"rec": by_id["lee2019chapter"], "locator": "",
+         "prefix": "", "suffix": ""}]}
+    document.set_citation_cluster(doc, kind, mark, key, new_cluster)
+    document.refresh_document(doc, styles.get_style("apa"), records)
+    body = doc.getText().getString()
+    ok &= check("edited citation re-rendered with both works",
+                "Smith & Jones, 2020, p. 42" in body and "Lee, 2019" in body)
+    ok &= check("added work reached the bibliography",
+                "Lee, K.-Y." in body)
+    ok &= check("citation count unchanged",
+                len(document.get_citation_marks(doc)) == 2)
+
+    # The edit must survive another refresh (payload really was stored).
+    document.refresh_document(doc, styles.get_style("apa"), records)
+    ok &= check("edit persists across refresh",
+                "Smith & Jones, 2020, p. 42" in doc.getText().getString())
+
+    # A citation inside a footnote lives in a different XText, which the
+    # range comparison must cope with rather than throw on.
+    note = doc.createInstance("com.sun.star.text.Footnote")
+    text.insertTextContent(text.getEnd(), note, False)
+    vc.gotoRange(note.getEnd(), False)
+    document.insert_citation_mark(
+        doc, {"items": [{"rec": by_id["who2022report"]}]}, "(pending)")
+    document.refresh_document(doc, styles.get_style("apa"), records)
+    note_mark = None
+    for mark, cluster in document.get_citation_marks(doc):
+        if cluster["items"][0]["rec"]["id"] == "who2022report":
+            note_mark = mark
+    vc.gotoRange(note_mark.getAnchor(), False)
+    vc.goRight(1, False)
+    found_note = document.find_citation_at(doc, vc)
+    ok &= check("citation inside a footnote is found",
+                found_note is not None
+                and found_note[3]["items"][0]["rec"]["id"] == "who2022report")
+    doc.close(False)
+    return ok
+
+
 def main():
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 2002
     ctx = connect(port)
@@ -184,6 +260,8 @@ def main():
     ok &= test_reading_order(desktop, by_id, records)
     print("--- pasted citations")
     ok &= test_pasted_citation_adopted(desktop, by_id, records)
+    print("--- edit citation")
+    ok &= test_edit_citation(desktop, by_id, records)
 
     print("EDITING " + ("OK" if ok else "FAILED"))
     return 0 if ok else 1

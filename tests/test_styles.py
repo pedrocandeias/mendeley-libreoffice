@@ -174,6 +174,67 @@ class TestNumeric(unittest.TestCase):
         self.assertEqual(rendered[-1], "see [1], see [2]")
 
 
+class TestBuildClusterItems(unittest.TestCase):
+    def setUp(self):
+        self.by_id = load()
+
+    def build(self, ids, locator="", prefix="", suffix="", preset=None):
+        return engine.build_cluster_items(ids, self.by_id, locator, prefix,
+                                          suffix, preset)
+
+    def test_insert_applies_fields_to_every_work(self):
+        items = self.build(["smith2020deep", "garcia2018stats"],
+                           locator="12", prefix="see")
+        self.assertEqual([it["locator"] for it in items], ["12", "12"])
+        self.assertEqual([it["prefix"] for it in items], ["see", "see"])
+
+    def test_order_follows_chosen_ids(self):
+        items = self.build(["garcia2018stats", "smith2020deep"])
+        self.assertEqual([it["rec"]["id"] for it in items],
+                         ["garcia2018stats", "smith2020deep"])
+
+    def test_unknown_id_is_skipped(self):
+        items = self.build(["smith2020deep", "does-not-exist"])
+        self.assertEqual([it["rec"]["id"] for it in items],
+                         ["smith2020deep"])
+
+    def test_untouched_edit_keeps_per_work_locators(self):
+        preset = [{"rec": self.by_id["smith2020deep"], "locator": "5",
+                   "prefix": "", "suffix": ""},
+                  {"rec": self.by_id["garcia2018stats"], "locator": "99",
+                   "prefix": "", "suffix": ""}]
+        # The dialog showed the first work's locator; it came back as-is.
+        items = self.build(["smith2020deep", "garcia2018stats"],
+                           locator="5", preset=preset)
+        self.assertEqual([it["locator"] for it in items], ["5", "99"])
+
+    def test_changed_edit_applies_to_every_work(self):
+        preset = [{"rec": self.by_id["smith2020deep"], "locator": "5",
+                   "prefix": "", "suffix": ""},
+                  {"rec": self.by_id["garcia2018stats"], "locator": "99",
+                   "prefix": "", "suffix": ""}]
+        items = self.build(["smith2020deep", "garcia2018stats"],
+                           locator="7", preset=preset)
+        self.assertEqual([it["locator"] for it in items], ["7", "7"])
+
+    def test_work_added_while_editing_gets_the_shared_fields(self):
+        preset = [{"rec": self.by_id["smith2020deep"], "locator": "5",
+                   "prefix": "", "suffix": ""}]
+        items = self.build(["smith2020deep", "lee2019chapter"],
+                           locator="5", preset=preset)
+        self.assertEqual([it["locator"] for it in items], ["5", "5"])
+
+    def test_removing_a_work_while_editing(self):
+        preset = [{"rec": self.by_id["smith2020deep"], "locator": "5",
+                   "prefix": "", "suffix": ""},
+                  {"rec": self.by_id["garcia2018stats"], "locator": "99",
+                   "prefix": "", "suffix": ""}]
+        items = self.build(["garcia2018stats"], locator="5", preset=preset)
+        self.assertEqual([it["rec"]["id"] for it in items],
+                         ["garcia2018stats"])
+        self.assertEqual(items[0]["locator"], "99")
+
+
 class TestEngine(unittest.TestCase):
     def test_snapshot_only_processing(self):
         rec = {"id": "x1", "type": "article-journal", "title": "T",

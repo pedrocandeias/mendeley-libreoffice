@@ -30,6 +30,20 @@
               <value>com.sun.star.text.TextDocument</value>
             </prop>
           </node>
+          <node oor:name="m01b" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string">
+              <value>org.mendeley.lo:EditCitation</value>
+            </prop>
+            <prop oor:name="Title" oor:type="xs:string">
+              <value xml:lang="en-US">~Edit Citation...</value>
+            </prop>
+            <prop oor:name="Target" oor:type="xs:string">
+              <value>_self</value>
+            </prop>
+            <prop oor:name="Context" oor:type="xs:string">
+              <value>com.sun.star.text.TextDocument</value>
+            </prop>
+          </node>
           <node oor:name="m02" oor:op="replace">
             <prop oor:name="URL" oor:type="xs:string">
               <value>org.mendeley.lo:InsertBibliography</value>
@@ -110,6 +124,20 @@
           </prop>
           <prop oor:name="Title" oor:type="xs:string">
             <value xml:lang="en-US">Insert Citation</value>
+          </prop>
+          <prop oor:name="Target" oor:type="xs:string">
+            <value>_self</value>
+          </prop>
+          <prop oor:name="Context" oor:type="xs:string">
+            <value>com.sun.star.text.TextDocument</value>
+          </prop>
+        </node>
+        <node oor:name="t01b" oor:op="replace">
+          <prop oor:name="URL" oor:type="xs:string">
+            <value>org.mendeley.lo:EditCitation</value>
+          </prop>
+          <prop oor:name="Title" oor:type="xs:string">
+            <value xml:lang="en-US">Edit Citation</value>
           </prop>
           <prop oor:name="Target" oor:type="xs:string">
             <value>_self</value>
