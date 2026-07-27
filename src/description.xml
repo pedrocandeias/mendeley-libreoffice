@@ -3,7 +3,7 @@
              xmlns:d="http://openoffice.org/extensions/description/2006"
              xmlns:xlink="http://www.w3.org/1999/xlink">
   <identifier value="org.mendeley.libreoffice"/>
-  <version value="0.6.0"/>
+  <version value="0.6.1"/>
   <platform value="all"/>
   <display-name>
     <name lang="en-US">Mendeley Cite for LibreOffice</name>
@@ -11,7 +11,22 @@
   <extension-description>
     <src lang="en-US" xlink:href="pkg-description/description-en.txt"/>
   </extension-description>
+  <publisher>
+    <name xlink:href="https://github.com/pedrocandeias/mendeley-libreoffice"
+          lang="en-US">Pedro Candeias</name>
+  </publisher>
+  <!-- Checked by Tools > Extensions > Check for Updates. -->
+  <update-information>
+    <src xlink:href="https://raw.githubusercontent.com/pedrocandeias/mendeley-libreoffice/main/update.xml"/>
+  </update-information>
   <dependencies>
+    <!-- The floor is the bundled Python: mlo uses "from __future__ import
+         annotations", which needs 3.7, and LibreOffice 7.0 ships 3.8.
+         Import from Mendeley Cite (Word) additionally needs content
+         controls (7.4+), but that single command reports the problem
+         itself rather than blocking installation of everything else. -->
+    <lo:LibreOffice-minimal-version value="7.0" d:name="LibreOffice 7.0"
+        xmlns:lo="http://libreoffice.org/extensions/description/2011"/>
     <OpenOffice.org-minimal-version value="4.1" d:name="OpenOffice.org 4.1"/>
   </dependencies>
 </description>

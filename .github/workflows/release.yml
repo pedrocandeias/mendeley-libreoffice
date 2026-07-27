@@ -22,9 +22,17 @@ jobs:
           tag="${GITHUB_REF_NAME#v}"
           desc="$(grep -oP '<version value="\K[^"]+' src/description.xml)"
           init="$(grep -oP '__version__ = "\K[^"]+' src/python/pythonpath/mlo/__init__.py)"
-          echo "tag=$tag  description.xml=$desc  __init__.py=$init"
-          if [ "$tag" != "$desc" ] || [ "$tag" != "$init" ]; then
-            echo "::error::Tag $tag must match the version in description.xml ($desc) and mlo/__init__.py ($init). Bump both before tagging." >&2
+          feed="$(grep -oP '<version value="\K[^"]+' update.xml)"
+          echo "tag=$tag  description.xml=$desc  __init__.py=$init  update.xml=$feed"
+          if [ "$tag" != "$desc" ] || [ "$tag" != "$init" ] || [ "$tag" != "$feed" ]; then
+            echo "::error::Tag $tag must match the version in description.xml ($desc), mlo/__init__.py ($init) and update.xml ($feed). Bump all three before tagging." >&2
+            exit 1
+          fi
+          # The update feed must offer the asset this run is about to
+          # publish, or Check for Updates would hand users a dead link.
+          want="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/mendeley-libreoffice-${tag}.oxt"
+          if ! grep -qF "$want" update.xml; then
+            echo "::error::update.xml must point its download at $want" >&2
             exit 1
           fi
 

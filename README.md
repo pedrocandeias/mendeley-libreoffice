@@ -117,7 +117,7 @@ Mendeley menu appears in Writer.
 
 1. **Download the extension.** Go to the
    [Releases page](https://github.com/pedrocandeias/mendeley-libreoffice/releases/latest)
-   and, under **Assets**, click the `mendeley-libreoffice-x.y.z.oxt` file (e.g. `mendeley-libreoffice-0.6.0.oxt`) to download it.
+   and, under **Assets**, click the `mendeley-libreoffice-x.y.z.oxt` file (e.g. `mendeley-libreoffice-0.6.1.oxt`) to download it.
    (If the browser warns about an unknown file type, keep it — an `.oxt`
    file is just a LibreOffice extension package.)
 2. **Open LibreOffice Writer.**
@@ -142,9 +142,15 @@ Python scripting (rare; the default builds all include it). On
 Debian/Ubuntu, install the `libreoffice-script-provider-python` package
 and restart.
 
-**To remove or update** the extension, return to *Tools ▸ Extensions…*,
-select *Mendeley Cite for LibreOffice* and use **Remove** — or **Add…**
-the newer `.oxt` on top of it.
+**Updates** are offered in place: in *Tools ▸ Extensions…* click
+**Check for Updates** and LibreOffice will find, download and install
+any newer release by itself. You can still update by hand with **Add…**
+on a freshly downloaded `.oxt`, and **Remove** uninstalls.
+
+**Requires LibreOffice 7.0 or newer.** *Import from Mendeley Cite
+(Word)* additionally needs 7.4, since older versions do not expose Word
+content controls to extensions; that one command says so if you try it
+on an older build, and everything else works regardless.
 
 ## Install from source (developers)
 
@@ -327,18 +333,28 @@ classes in `src/python/pythonpath/mlo/styles.py`: implement the
 
 ## Releases
 
-Continuous integration runs the test suite and builds the `.oxt` on
-every push. To cut a release, bump the version in **both**
-`src/description.xml` and `src/python/pythonpath/mlo/__init__.py`, then
-push a matching tag:
+Continuous integration runs the unit tests, the UNO integration tests
+and builds the `.oxt` on every push. To cut a release, bump the version
+in **all three** of
+
+- `src/description.xml`
+- `src/python/pythonpath/mlo/__init__.py`
+- `update.xml` — both its `<version>` and the download URL, which must
+  point at the `.oxt` the new tag will publish
+
+then push a matching tag:
 
 ```sh
-git tag v0.6.0
-git push origin v0.6.0
+git tag v0.6.1
+git push origin v0.6.1
 ```
 
-The release workflow verifies the tag matches those versions, rebuilds
-the extension, and publishes a GitHub release with the `.oxt` attached.
+The release workflow refuses to publish unless the tag matches all
+three and the feed's download URL matches the asset it is about to
+upload; it then rebuilds the extension and publishes a GitHub release
+with the `.oxt` attached. `update.xml` is what *Check for Updates*
+fetches, so a stale feed would offer users a dead link — hence the
+check.
 
 ## License
 

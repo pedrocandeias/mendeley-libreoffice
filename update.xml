@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Extension update feed.
+
+  LibreOffice fetches this file (the URL is in src/description.xml) when
+  the user runs Tools > Extensions > Check for Updates, and offers the
+  download below when its version is newer than the installed one.
+
+  It must be bumped together with src/description.xml and
+  mlo/__init__.py; the release workflow refuses to publish a tag whose
+  version does not match all three.
+-->
+<description xmlns="http://openoffice.org/extensions/update/2006"
+             xmlns:xlink="http://www.w3.org/1999/xlink">
+  <identifier value="org.mendeley.libreoffice"/>
+  <version value="0.6.1"/>
+  <update-download>
+    <src xlink:href="https://github.com/pedrocandeias/mendeley-libreoffice/releases/download/v0.6.1/mendeley-libreoffice-0.6.1.oxt"/>
+  </update-download>
+</description>
