@@ -94,7 +94,7 @@ Mendeley menu appears in Writer.
 
 1. **Download the extension.** Go to the
    [Releases page](https://github.com/pedrocandeias/mendeley-libreoffice/releases/latest)
-   and, under **Assets**, click the `mendeley-libreoffice-x.y.z.oxt` file (e.g. `mendeley-libreoffice-0.3.1.oxt`) to download it.
+   and, under **Assets**, click the `mendeley-libreoffice-x.y.z.oxt` file (e.g. `mendeley-libreoffice-0.3.2.oxt`) to download it.
    (If the browser warns about an unknown file type, keep it — an `.oxt`
    file is just a LibreOffice extension package.)
 2. **Open LibreOffice Writer.**
@@ -233,12 +233,33 @@ python3 -m unittest discover -s tests
 python3 scripts/demo.py     # render the sample library in every style
 ```
 
-`scripts/uno_smoke.py` exercises the UNO document layer (marks,
-bibliography, refresh/restyle) against a real headless LibreOffice
-listening on a UNO socket — see the script header for how to launch it.
-`scripts/uno_docx_roundtrip.py` additionally saves the document as
-`.docx`, reloads it and restyles it, and checks that pre-0.2
-reference-mark citations are migrated on refresh.
+The unit tests cover the pure-Python core only. The UNO layer —
+`document.py`, the protocol handler and the Word importer — is covered
+by integration tests that drive a real headless LibreOffice:
+
+```sh
+./scripts/run_uno_tests.sh
+```
+
+This builds the `.oxt`, installs it into a throwaway LibreOffice
+profile, starts `soffice` headless on a UNO socket and runs every
+`scripts/uno_*.py` test against it, cleaning up afterwards. It needs
+`soffice`/`unopkg` on `PATH` and a `python3` that can `import uno`
+(on Debian/Ubuntu: `sudo apt-get install libreoffice-writer
+python3-uno`), and it must **not** be run as root, since `unopkg`
+refuses to install a user extension for root. CI runs the same script
+on every push.
+
+The individual tests can also be run by hand against an already-running
+soffice — see each script's header:
+
+- `uno_smoke.py` — citation marks, bibliography, refresh and restyle.
+- `uno_docx_roundtrip.py` — saves as `.docx`, reloads, restyles, and
+  checks that pre-0.2 reference-mark citations migrate on refresh.
+- `uno_word_import_test.py` — builds Word-style content controls,
+  converts them and checks the import is idempotent.
+- `uno_dispatch_check.py` — every `org.mendeley.lo:*` command resolves
+  to the protocol handler (requires the extension to be installed).
 
 ## Known limitations
 
@@ -248,6 +269,11 @@ reference-mark citations are migrated on refresh.
   body citations for numbering purposes.
 - The five styles cover the common cases but are not full CSL; styles
   live in `src/python/pythonpath/mlo/styles.py` and are easy to extend.
+- Importing from Mendeley Cite (Word) leaves one empty, untagged content
+  control behind per converted citation: LibreOffice offers no API to
+  delete a content control, so they are emptied and stripped of their
+  Mendeley tag instead. They are zero-length and inert — nothing
+  recognises them as citations any more — but they do stay in the file.
 - `.docx` files edited in Word keep their live citations (Word preserves
   the bookmarks and custom properties), but the citations are not
   recognised by the official Mendeley Cite add-in as its own. Conversion
@@ -270,8 +296,8 @@ every push. To cut a release, bump the version in **both**
 push a matching tag:
 
 ```sh
-git tag v0.3.1
-git push origin v0.3.1
+git tag v0.3.2
+git push origin v0.3.2
 ```
 
 The release workflow verifies the tag matches those versions, rebuilds

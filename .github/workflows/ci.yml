@@ -32,3 +32,26 @@ jobs:
           name: mendeley-libreoffice-oxt
           path: dist/mendeley-libreoffice.oxt
           if-no-files-found: error
+
+  uno:
+    # Integration tests for the UNO layer (document.py, the protocol
+    # handler and the Word importer), which the unit tests cannot reach.
+    # Installs the built .oxt into a throwaway profile and drives a
+    # headless LibreOffice over a UNO socket.
+    name: UNO integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # TODO: drop continue-on-error once this job has proven stable
+    # (it drives a real LibreOffice, so it is the most likely to flake).
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install LibreOffice and python3-uno
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libreoffice-writer python3-uno zip
+
+      - name: Run UNO integration tests
+        run: ./scripts/run_uno_tests.sh

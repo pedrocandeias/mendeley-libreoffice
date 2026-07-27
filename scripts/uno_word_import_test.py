@@ -59,6 +59,17 @@ ITEM_B = {"id": "rec-b", "type": "book-section",
           "publisher": "Springer"}
 
 
+def any_mendeley_cc(doc):
+    """True if any content control still carries a Mendeley Cite tag."""
+    from mlo import word_import
+    acc = doc.getContentControls()
+    for i in range(acc.getCount()):
+        tag = getattr(acc.getByIndex(i), "Tag", "") or ""
+        if tag.startswith(word_import.TAG_PREFIX) or tag == word_import.BIB_TAG:
+            return True
+    return False
+
+
 def insert_control(doc, text, cursor, rendered, tag):
     cursor.setString(rendered)
     cc = doc.createInstance("com.sun.star.text.ContentControl")
@@ -107,8 +118,10 @@ def main():
     n, bib = word_import.convert_document(doc)
     ok &= check("2 clusters imported", n == 2)
     ok &= check("bibliography converted", bib)
-    ok &= check("content controls dissolved",
-                doc.getContentControls().getCount() == 0)
+    # LibreOffice cannot delete a content control, so the leftovers are
+    # emptied and untagged instead; what matters is that nothing still
+    # advertises itself as a Mendeley citation.
+    ok &= check("no Mendeley content controls left", not any_mendeley_cc(doc))
 
     marks = document.get_citation_marks(doc)
     ok &= check("2 citation bookmarks", len(marks) == 2)
@@ -127,6 +140,13 @@ def main():
                 "Ghali, 2008, p. 281" in body)
     ok &= check("Ghali bibliography entry",
                 "Ghali, S. (2008)." in body)
+
+    # Importing again must be a no-op: leftover controls are untagged, so
+    # they must not be converted a second time into phantom citations.
+    n3, _ = word_import.convert_document(doc)
+    ok &= check("second import converts nothing", n3 == 0)
+    ok &= check("still 2 citations after second import",
+                len(document.get_citation_marks(doc)) == 2)
 
     doc.close(False)
     print("WORD IMPORT " + ("OK" if ok else "FAILED"))

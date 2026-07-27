@@ -35,7 +35,7 @@ def main():
 
     ok = True
     for cmd in ("InsertCitation", "InsertBibliography", "Refresh",
-                "Settings", "About"):
+                "ImportWord", "Settings", "About"):
         url = UnoURL()
         url.Complete = "org.mendeley.lo:" + cmd
         _, url = transformer.parseStrict(url)

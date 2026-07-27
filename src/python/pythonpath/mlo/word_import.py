@@ -115,13 +115,27 @@ def citation_to_cluster(data: dict):
 
 def _dissolve_control(doc, cc, keep_text: str):
     """Remove a content control but keep its text; return a cursor
-    spanning that text."""
+    spanning that text.
+
+    LibreOffice offers no way to actually delete a content control:
+    removeTextContent() empties it but leaves the (now zero-length)
+    control behind, and dispose() takes the text with it. So the text is
+    moved out of the control and the leftover is stripped of its Tag —
+    otherwise it still looks like a Mendeley citation to Word's add-in,
+    and a second import would convert it again into a phantom citation
+    with no visible text.
+    """
     anchor = cc.getAnchor()
     text = anchor.getText()
     cursor = text.createTextCursorByRange(anchor)
     text.removeTextContent(cc)
     if cursor.getString() != keep_text:
         cursor.setString(keep_text)
+    try:
+        cc.Tag = ""
+        cc.Alias = ""
+    except Exception:
+        pass
     return text, cursor
 
 
