@@ -174,6 +174,55 @@ class TestNumeric(unittest.TestCase):
         self.assertEqual(rendered[-1], "see [1], see [2]")
 
 
+class TestItalicSpans(unittest.TestCase):
+    def setUp(self):
+        self.by_id = load()
+
+    def italics(self, style_id, rec_id, number=None):
+        entry = styles.get_style(style_id).entry(self.by_id[rec_id],
+                                                 number=number)
+        return [str(entry)[s:e] for s, e in entry.spans]
+
+    def test_entry_is_still_a_plain_string(self):
+        entry = styles.get_style("apa").entry(self.by_id["smith2020deep"])
+        self.assertIsInstance(entry, str)
+        self.assertTrue(entry.startswith("Smith, J. R., & Jones, A. (2020)."))
+
+    def test_apa_journal_and_volume(self):
+        self.assertEqual(self.italics("apa", "smith2020deep"),
+                         ["Nature Methods", "17"])
+
+    def test_apa_chapter_italicises_the_book(self):
+        self.assertEqual(self.italics("apa", "lee2019chapter"),
+                         ["Systems Biology Handbook"])
+
+    def test_ieee_italicises_journal_not_article_title(self):
+        self.assertEqual(self.italics("ieee", "smith2020deep", number=1),
+                         ["Nature Methods"])
+
+    def test_vancouver_has_no_italics(self):
+        self.assertEqual(self.italics("vancouver", "smith2020deep", number=1),
+                         [])
+
+    def test_spans_are_ordered_and_within_the_text(self):
+        for style_id in ("apa", "harvard", "chicago-ad", "ieee", "vancouver"):
+            for rec_id in self.by_id:
+                entry = styles.get_style(style_id).entry(self.by_id[rec_id],
+                                                         number=1)
+                last = 0
+                for start, end in entry.spans:
+                    self.assertLessEqual(0, start, (style_id, rec_id))
+                    self.assertLess(start, end, (style_id, rec_id))
+                    self.assertLessEqual(end, len(entry), (style_id, rec_id))
+                    self.assertGreaterEqual(start, last, (style_id, rec_id))
+                    last = end
+
+    def test_missing_field_yields_no_span(self):
+        rec = dict(self.by_id["smith2020deep"], container="")
+        entry = styles.get_style("apa").entry(rec)
+        self.assertEqual([str(entry)[s:e] for s, e in entry.spans], ["17"])
+
+
 class TestBuildClusterItems(unittest.TestCase):
     def setUp(self):
         self.by_id = load()

@@ -242,6 +242,58 @@ def test_edit_citation(desktop, by_id, records):
     return ok
 
 
+def italic_runs(doc, paragraph_index):
+    """Return the italic text runs of one bibliography paragraph."""
+    from com.sun.star.awt.FontSlant import ITALIC
+    paras = []
+    enum = doc.getText().createEnumeration()
+    while enum.hasMoreElements():
+        el = enum.nextElement()
+        if el.supportsService("com.sun.star.text.Paragraph"):
+            paras.append(el)
+    runs = []
+    portions = paras[paragraph_index].createEnumeration()
+    while portions.hasMoreElements():
+        portion = portions.nextElement()
+        try:
+            if portion.CharPosture == ITALIC and portion.getString():
+                runs.append(portion.getString())
+        except Exception:
+            continue
+    return runs
+
+
+def test_bibliography_italics(desktop, by_id, records):
+    from mlo import document, styles
+    doc = new_doc(desktop)
+    text = doc.getText()
+    ok = True
+    text.insertString(text.getEnd(), "Body ", False)
+    cite_at_end(doc, by_id, "smith2020deep")
+    doc.getCurrentController().getViewCursor().gotoRange(text.getEnd(), False)
+    document.insert_bibliography_section(doc)
+
+    document.refresh_document(doc, styles.get_style("apa"), records)
+    runs = italic_runs(doc, 1)
+    ok &= check("APA italicises the journal name",
+                any("Nature Methods" in r for r in runs))
+    ok &= check("APA does not italicise the article title",
+                not any("Deep learning" in r for r in runs))
+
+    # Restyling must not leave the old italics behind.
+    document.refresh_document(doc, styles.get_style("vancouver"), records)
+    runs = italic_runs(doc, 1)
+    ok &= check("Vancouver bibliography has no italics", runs == [])
+
+    # ...and switching back must restore them.
+    document.refresh_document(doc, styles.get_style("apa"), records)
+    runs = italic_runs(doc, 1)
+    ok &= check("italics come back when restyling to APA",
+                any("Nature Methods" in r for r in runs))
+    doc.close(False)
+    return ok
+
+
 def main():
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 2002
     ctx = connect(port)
@@ -262,6 +314,8 @@ def main():
     ok &= test_pasted_citation_adopted(desktop, by_id, records)
     print("--- edit citation")
     ok &= test_edit_citation(desktop, by_id, records)
+    print("--- bibliography italics")
+    ok &= test_bibliography_italics(desktop, by_id, records)
 
     print("EDITING " + ("OK" if ok else "FAILED"))
     return 0 if ok else 1

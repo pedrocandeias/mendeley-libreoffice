@@ -48,6 +48,26 @@ def doc_text(doc):
     return "\n".join(out)
 
 
+def italic_runs(doc):
+    """Every italic text run in the document body."""
+    from com.sun.star.awt.FontSlant import ITALIC
+    runs = []
+    paras = doc.getText().createEnumeration()
+    while paras.hasMoreElements():
+        para = paras.nextElement()
+        if not para.supportsService("com.sun.star.text.Paragraph"):
+            continue
+        portions = para.createEnumeration()
+        while portions.hasMoreElements():
+            portion = portions.nextElement()
+            try:
+                if portion.CharPosture == ITALIC and portion.getString():
+                    runs.append(portion.getString())
+            except Exception:
+                continue
+    return runs
+
+
 def check(label, cond):
     print(("PASS  " if cond else "FAIL  ") + label)
     return bool(cond)
@@ -116,6 +136,8 @@ def main():
                 == ["garcia2018stats", "lee2019chapter", "smith2020deep"])
     ok &= check("bibliography bookmark survives",
                 doc.getBookmarks().hasByName(payload.BIB_BOOKMARK))
+    ok &= check("bibliography italics survive DOCX reload",
+                any("Nature Methods" in run for run in italic_runs(doc)))
 
     # --- restyle the reloaded DOCX
     n, bib = document.refresh_document(doc, styles.get_style("ieee"), records)

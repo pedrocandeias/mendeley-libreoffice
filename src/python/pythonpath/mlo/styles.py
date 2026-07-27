@@ -1,4 +1,4 @@
-"""Built-in citation styles (plain-text rendering).
+"""Built-in citation styles.
 
 Each style renders in-text citation clusters and bibliography entries
 from the internal record format (see bibtex.py).
@@ -7,14 +7,35 @@ Two kinds of style:
   * author-date  — (Smith, 2020, p. 4); bibliography sorted alphabetically
   * numeric      — [1] / (1); bibliography sorted by first appearance
 
-Rendering is plain text (no italics) because citations live inside
-reference-mark text runs; this matches what most reviewers need and
-keeps refresh robust.
+In-text citations are plain text: they live inside bookmarked runs, and
+keeping them unformatted keeps refresh robust. Bibliography entries are
+plain text too, but carry the ranges that should be italic (journal and
+book titles, and the volume number in APA) — see FormattedText. Callers
+that only want the text can treat an entry as the string it is.
 """
 
 import re
 
 EN_DASH = "–"
+
+
+class FormattedText(str):
+    """A rendered string plus the ranges within it that are italic.
+
+    Subclasses str so every existing caller — tests, the demo script,
+    anything joining or printing entries — keeps working unchanged;
+    only the document layer looks at .spans.
+
+    spans is a tuple of (start, end) character offsets, non-overlapping
+    and in ascending order.
+    """
+
+    spans = ()
+
+    def __new__(cls, text, spans=()):
+        obj = str.__new__(cls, text)
+        obj.spans = tuple(spans)
+        return obj
 
 
 # ---------------------------------------------------------------- helpers
@@ -143,12 +164,41 @@ class Style(object):
         return "(" + "; ".join(parts) + ")"
 
     # ---- bibliography ---------------------------------------------------
-    def entry(self, rec, year_suffix="", number=None):
+    def _render_entry(self, rec, year_suffix="", number=None):
         t = rec.get("type", "generic")
         fn = getattr(self, "entry_" + t.replace("-", "_"), None)
         if fn is None:
             fn = self.entry_generic
         return fn(rec, year_suffix)
+
+    def italic_fields(self, rec):
+        """Substrings of the entry that this style sets in italics.
+
+        Returned in the order they appear in the entry, so that a value
+        which occurs more than once (a volume number that also shows up
+        in the page range, say) is matched at the right place.
+        """
+        return []
+
+    def italic_spans(self, rec, text):
+        spans = []
+        pos = 0
+        for needle in self.italic_fields(rec):
+            needle = (needle or "").strip()
+            if not needle:
+                continue
+            at = text.find(needle, pos)
+            if at < 0:                     # not where expected; try anywhere
+                at = text.find(needle)
+            if at < 0:
+                continue
+            spans.append((at, at + len(needle)))
+            pos = at + len(needle)
+        return spans
+
+    def entry(self, rec, year_suffix="", number=None):
+        text = self._render_entry(rec, year_suffix, number)
+        return FormattedText(text, self.italic_spans(rec, text))
 
 
 # ---------------------------------------------------------------- APA 7
@@ -247,6 +297,16 @@ class APA(Style):
 
     entry_generic = entry_report
 
+    def italic_fields(self, rec):
+        # APA 7 italicises the journal name and its volume, the book
+        # title, and — in a chapter — the book the chapter is in.
+        t = rec.get("type", "generic")
+        if t == "article-journal":
+            return [rec.get("container"), rec.get("volume")]
+        if t in ("chapter", "paper-conference"):
+            return [rec.get("container")]
+        return [rec.get("title")]
+
 
 # ---------------------------------------------------------------- Harvard
 
@@ -321,6 +381,12 @@ class Harvard(Style):
 
     entry_thesis = entry_generic
     entry_report = entry_generic
+
+    def italic_fields(self, rec):
+        t = rec.get("type", "generic")
+        if t in ("article-journal", "chapter", "paper-conference"):
+            return [rec.get("container")]
+        return [rec.get("title")]
 
 
 # ---------------------------------------------------------------- Chicago
@@ -405,6 +471,15 @@ class ChicagoAD(Style):
                             _sentence(rec.get("container") or rec.get("publisher", "")),
                             rec.get("url", "")])
 
+    def italic_fields(self, rec):
+        t = rec.get("type", "generic")
+        if t in ("article-journal", "chapter", "paper-conference"):
+            return [rec.get("container")]
+        if t == "webpage":
+            # Chicago quotes a page title and italicises the site name.
+            return [rec.get("container") or rec.get("publisher")]
+        return [rec.get("title")]
+
 
 # ---------------------------------------------------------------- IEEE
 
@@ -432,7 +507,7 @@ class IEEE(Style):
         return render_numeric_cluster(items, self.bracket, ", ",
                                       self.collapse, loc_fmt="%s, %s")
 
-    def entry(self, rec, year_suffix="", number=None):
+    def _render_entry(self, rec, year_suffix="", number=None):
         body = self._entry_body(rec)
         return "[%d] %s" % (number, body) if number else body
 
@@ -477,10 +552,22 @@ class IEEE(Style):
                     "doi: %s." % rec["doi"] if rec.get("doi") else ""]
         return _clean_join(segs)
 
+    def italic_fields(self, rec):
+        # IEEE italicises the journal, proceedings or book name; the
+        # article title stays in quotes.
+        t = rec.get("type", "generic")
+        if t in ("article-journal", "chapter", "paper-conference"):
+            return [rec.get("container")]
+        if t == "book":
+            return [rec.get("title")]
+        return []
+
 
 # ---------------------------------------------------------------- Vancouver
 
 class Vancouver(Style):
+    """Vancouver sets nothing in italics, so italic_fields stays empty."""
+
     id = "vancouver"
     name = "Vancouver"
     kind = "numeric"
@@ -501,7 +588,7 @@ class Vancouver(Style):
         return render_numeric_cluster(items, self.bracket, ",",
                                       self.collapse, loc_fmt="%s, %s")
 
-    def entry(self, rec, year_suffix="", number=None):
+    def _render_entry(self, rec, year_suffix="", number=None):
         body = self._entry_body(rec)
         return "%d. %s" % (number, body) if number else body
 

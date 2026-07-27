@@ -18,6 +18,7 @@ and each Refresh migrates them to the bookmark format.
 import contextlib
 
 import uno  # noqa: F401  (ensures we run inside LibreOffice)
+from com.sun.star.awt.FontSlant import ITALIC, NONE
 from com.sun.star.beans.PropertyAttribute import REMOVABLE
 from com.sun.star.text.ControlCharacter import PARAGRAPH_BREAK
 
@@ -371,6 +372,27 @@ def _bib_anchor(doc):
     return None, None
 
 
+def _apply_italics(text, entry_start, entry):
+    """Italicise the ranges an entry asks for, leaving the rest upright.
+
+    The whole entry is reset to upright first: entries are rewritten in
+    place on every refresh, so without that a run could inherit italics
+    from whatever occupied those characters last time.
+    """
+    spans = getattr(entry, "spans", ())
+    try:
+        whole = text.createTextCursorByRange(entry_start)
+        whole.goRight(len(entry), True)
+        whole.setPropertyValue("CharPosture", NONE)
+        for start, end in spans:
+            run = text.createTextCursorByRange(entry_start)
+            run.goRight(start, False)
+            run.goRight(end - start, True)
+            run.setPropertyValue("CharPosture", ITALIC)
+    except Exception:
+        pass          # formatting is cosmetic; never fail a refresh for it
+
+
 def update_bibliography(doc, entries):
     container, anchor = _bib_anchor(doc)
     if anchor is None:
@@ -385,9 +407,13 @@ def update_bibliography(doc, entries):
     cursor.setString(entries[0] if entries else "")
     start = text.createTextCursorByRange(cursor.getStart())
     cursor.collapseToEnd()
+    if entries:
+        _apply_italics(text, start.getStart(), entries[0])
     for entry in entries[1:]:
         text.insertControlCharacter(cursor, PARAGRAPH_BREAK, False)
+        entry_start = text.createTextCursorByRange(cursor.getEnd())
         text.insertString(cursor, entry, False)
+        _apply_italics(text, entry_start.getStart(), entry)
     span = text.createTextCursorByRange(start.getStart())
     span.gotoRange(cursor.getEnd(), True)
     if is_bookmark:
