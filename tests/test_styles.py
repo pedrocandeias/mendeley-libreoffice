@@ -152,6 +152,27 @@ class TestNumeric(unittest.TestCase):
         rendered, _ = engine.process(clusters, styles.get_style("ieee"))
         self.assertEqual(rendered[0], "[1, p. 7]")
 
+    def test_ieee_prefix_and_suffix(self):
+        clusters = [cluster(self.by_id, "smith2020deep", prefix="see",
+                            suffix="for the full derivation")]
+        rendered, _ = engine.process(clusters, styles.get_style("ieee"))
+        self.assertEqual(rendered[0],
+                         "see [1], for the full derivation")
+
+    def test_vancouver_prefix_with_locator(self):
+        clusters = [cluster(self.by_id, "smith2020deep", prefix="cf.",
+                            locator="7")]
+        rendered, _ = engine.process(clusters, styles.get_style("vancouver"))
+        self.assertEqual(rendered[0], "cf. (1, p. 7)")
+
+    def test_numeric_prefix_disables_collapse(self):
+        clusters = [cluster(self.by_id, "smith2020deep"),
+                    cluster(self.by_id, "smith2020other"),
+                    cluster(self.by_id, "smith2020deep", "smith2020other",
+                            prefix="see")]
+        rendered, _ = engine.process(clusters, styles.get_style("ieee"))
+        self.assertEqual(rendered[-1], "see [1], see [2]")
+
 
 class TestEngine(unittest.TestCase):
     def test_snapshot_only_processing(self):

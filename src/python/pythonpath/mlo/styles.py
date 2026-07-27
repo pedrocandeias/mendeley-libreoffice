@@ -549,14 +549,24 @@ class Vancouver(Style):
 # ---------------------------------------------------------------- numeric shared
 
 def render_numeric_cluster(items, bracket, sep, collapse, loc_fmt="%s, %s"):
-    """Render e.g. [1]-[3], [5] or (1-3,5); locators disable collapsing."""
+    """Render e.g. [1]-[3], [5] or (1-3,5).
+
+    Locators, prefixes and suffixes all disable collapsing, since each
+    number then carries text that cannot be folded into a range.
+    """
     open_b, close_b = bracket
-    if any(it.get("locator") for it in items):
+    if any(it.get("locator") or it.get("prefix") or it.get("suffix")
+           for it in items):
         segs = []
         for it in items:
             n = str(it["number"])
             loc = _locator_text(it.get("locator"))
-            segs.append(open_b + (loc_fmt % (n, loc) if loc else n) + close_b)
+            seg = open_b + (loc_fmt % (n, loc) if loc else n) + close_b
+            if it.get("prefix"):
+                seg = it["prefix"].rstrip() + " " + seg
+            if it.get("suffix"):
+                seg += ", " + it["suffix"].lstrip(", ")
+            segs.append(seg)
         return sep.join(segs)
     nums = sorted(set(it["number"] for it in items))
     groups = []

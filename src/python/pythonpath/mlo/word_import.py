@@ -1,23 +1,23 @@
-"""Importa citações do Mendeley Cite (Word) para o formato do plugin.
+"""Import Mendeley Cite (Word) citations into this extension's format.
 
-Os documentos geridos pelo add-in Mendeley Cite do Microsoft Word
-guardam cada citação num content control cujo Tag transporta o estado
-completo em base64:
+Documents managed by the Mendeley Cite add-in for Microsoft Word store
+each citation in a content control whose Tag carries the complete state
+as base64:
 
     MENDELEY_CITATION_v3_<base64(json)>
 
-O JSON contém os citationItems com o registo CSL integral de cada obra
-citada (itemData), além de locator/prefix/suffix. A bibliografia vive
-num content control com Tag MENDELEY_BIBLIOGRAPHY.
+The JSON holds the citationItems, each with the full CSL record of the
+cited work (itemData) plus locator/prefix/suffix. The bibliography
+lives in a content control tagged MENDELEY_BIBLIOGRAPHY.
 
-Este módulo converte esses content controls no formato nativo do
-plugin — bookmarks `MLO_C_<key>` com payloads em propriedades do
-documento e o bookmark `MLO_BIBLIOGRAPHY` — tornando o documento
-gerível no LibreOffice. A conversão é unidireccional: o add-in do Word
-deixa de reconhecer as citações convertidas.
+This module converts those content controls into the extension's native
+format — `MLO_C_<key>` bookmarks with payloads in document properties,
+and the `MLO_BIBLIOGRAPHY` bookmark — so the document becomes
+manageable in LibreOffice. The conversion is one-way: the Word add-in
+no longer recognises the converted citations.
 
-As funções puras (descodificação e mapeamento CSL→registo) não dependem
-de UNO e são testáveis fora do LibreOffice.
+The pure functions (tag decoding and CSL-to-record mapping) do not
+depend on UNO and are testable outside LibreOffice.
 """
 
 from __future__ import annotations
@@ -43,10 +43,10 @@ _TYPE_ALIASES = {
 }
 
 
-# ---------------------------------------------------------------- puras
+# ---------------------------------------------------------------- pure
 
 def decode_tag(tag: str):
-    """Descodifica o Tag de um content control de citação; None se alheio."""
+    """Decode a citation content control's Tag; None if it is not ours."""
     if not tag or not tag.startswith(TAG_PREFIX):
         return None
     b64 = tag[len(TAG_PREFIX):]
@@ -67,7 +67,7 @@ def _names(entries) -> list[dict]:
 
 
 def csl_to_record(d: dict) -> dict:
-    """Converte um itemData CSL-JSON no formato interno de registo."""
+    """Convert a CSL-JSON itemData object into an internal record."""
     issued = (d.get("issued") or {}).get("date-parts") or [[]]
     year = issued[0][0] if issued and issued[0] else None
     try:
@@ -98,7 +98,7 @@ def csl_to_record(d: dict) -> dict:
 
 
 def citation_to_cluster(data: dict):
-    """Converte o JSON de uma citação Word num cluster do plugin."""
+    """Convert a Word citation's JSON into an internal cluster."""
     items = []
     for it in (data or {}).get("citationItems", []):
         rec = csl_to_record(it.get("itemData") or {})
@@ -114,8 +114,8 @@ def citation_to_cluster(data: dict):
 # ---------------------------------------------------------------- UNO
 
 def _dissolve_control(doc, cc, keep_text: str):
-    """Remove um content control preservando o texto; devolve um cursor
-    que abrange esse texto."""
+    """Remove a content control but keep its text; return a cursor
+    spanning that text."""
     anchor = cc.getAnchor()
     text = anchor.getText()
     cursor = text.createTextCursorByRange(anchor)
@@ -126,9 +126,9 @@ def _dissolve_control(doc, cc, keep_text: str):
 
 
 def convert_document(doc):
-    """Converte todas as citações Mendeley Cite (Word) do documento.
+    """Convert every Mendeley Cite (Word) citation in the document.
 
-    Devolve (nº de clusters convertidos, bibliografia convertida?).
+    Returns (number of clusters converted, bibliography converted?).
     """
     from . import document
 
@@ -136,8 +136,8 @@ def convert_document(doc):
         controls_access = doc.getContentControls()
     except Exception:
         raise RuntimeError(
-            "Esta versão do LibreOffice não expõe content controls "
-            "(é necessário LibreOffice 7.4 ou mais recente).")
+            "This version of LibreOffice does not expose content "
+            "controls (LibreOffice 7.4 or newer is required).")
 
     targets = []
     for i in range(controls_access.getCount()):

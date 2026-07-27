@@ -53,7 +53,7 @@ Mendeley menu appears in Writer.
 ## Features
 
 - **Mendeley menu and toolbar in Writer**: Insert Citation, Insert
-  Bibliography, Refresh, Settings.
+  Bibliography, Refresh, Import from Mendeley Cite (Word), Settings.
 - **Two library sources**
   - **BibTeX file** exported from Mendeley Reference Manager
     (*File → Export All → BibTeX*). Works offline, no API keys needed —
@@ -73,6 +73,16 @@ Mendeley menu appears in Writer.
   disambiguation; page locators, prefixes and suffixes are supported;
   the bibliography is the text spanned by the `MLO_BIBLIOGRAPHY`
   bookmark and is rebuilt on every refresh.
+- **Import from Mendeley Cite (Word)**: documents whose citations were
+  inserted by the official Mendeley Cite add-in for Microsoft Word can
+  be converted in place. The add-in stores each citation in a content
+  control tagged `MENDELEY_CITATION_v3_<base64>`, carrying the full CSL
+  record of every cited work, so the conversion keeps your citations,
+  their page locators and the bibliography without needing your library
+  at hand. The conversion is one-way — the Word add-in no longer
+  recognises the converted citations — so it can be abandoned by closing
+  the document without saving. Requires LibreOffice 7.4 or newer (older
+  versions do not expose content controls to extensions).
 - **DOCX-safe**: bookmarks and custom document properties survive
   round-trips through the `.docx` filter in both LibreOffice and
   Microsoft Word, so live citations are preserved whether you keep your
@@ -84,7 +94,7 @@ Mendeley menu appears in Writer.
 
 1. **Download the extension.** Go to the
    [Releases page](https://github.com/pedrocandeias/mendeley-libreoffice/releases/latest)
-   and, under **Assets**, click the `mendeley-libreoffice-x.y.z.oxt` file (e.g. `mendeley-libreoffice-0.3.0.oxt`) to download it.
+   and, under **Assets**, click the `mendeley-libreoffice-x.y.z.oxt` file (e.g. `mendeley-libreoffice-0.3.1.oxt`) to download it.
    (If the browser warns about an unknown file type, keep it — an `.oxt`
    file is just a LibreOffice extension package.)
 2. **Open LibreOffice Writer.**
@@ -152,8 +162,17 @@ Alternatively, build and install by hand (`./build.sh`, then
 4. **Mendeley → Refresh Citations and Bibliography** after adding,
    moving or deleting citations, or after changing the style.
 
+**Coming from Word?** Open the `.docx` in Writer and choose
+**Mendeley → Import from Mendeley Cite (Word)…**. Citations written by
+the official Word add-in are converted in place, keeping their page
+locators and bibliography, after which they behave like any other
+citation here. The conversion is one-way — the Word add-in will not
+recognise them afterwards — so if you are not happy with the result,
+close the document without saving.
+
 Configuration, OAuth tokens and the library cache are stored in
-`~/.config/mendeley-libreoffice/`.
+`~/.config/mendeley-libreoffice/`, with `config.json` and `tokens.json`
+readable only by you (they hold your API credentials).
 
 ## Getting Mendeley API credentials
 
@@ -231,8 +250,9 @@ reference-mark citations are migrated on refresh.
   live in `src/python/pythonpath/mlo/styles.py` and are easy to extend.
 - `.docx` files edited in Word keep their live citations (Word preserves
   the bookmarks and custom properties), but the citations are not
-  recognised by the official Mendeley Cite add-in as its own — the two
-  plugins' citations coexist without converting into each other.
+  recognised by the official Mendeley Cite add-in as its own. Conversion
+  runs one way only: *Import from Mendeley Cite (Word)* brings Word
+  documents into this extension's format, and there is no export back.
 
 ## Contributing
 
@@ -250,8 +270,8 @@ every push. To cut a release, bump the version in **both**
 push a matching tag:
 
 ```sh
-git tag v0.3.0
-git push origin v0.3.0
+git tag v0.3.1
+git push origin v0.3.1
 ```
 
 The release workflow verifies the tag matches those versions, rebuilds

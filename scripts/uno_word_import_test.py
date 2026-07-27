@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Smoke test do importador Mendeley Cite (Word) → formato do plugin.
+"""Smoke test for the Mendeley Cite (Word) importer.
 
-Fabrica num documento Writer content controls idênticos aos que o
-add-in do Word escreve (Tag MENDELEY_CITATION_v3_<base64> e
-MENDELEY_BIBLIOGRAPHY), corre a conversão e verifica bookmarks,
-payloads e o refresh.
+Builds content controls in a Writer document identical to the ones the
+Word add-in writes (Tag MENDELEY_CITATION_v3_<base64> and
+MENDELEY_BIBLIOGRAPHY), runs the conversion, and checks the resulting
+bookmarks, payloads and refresh.
 
-Correr como uno_smoke.py: soffice headless à escuta no porto 2002.
+Run like uno_smoke.py: soffice headless listening on port 2002.
 """
 
 import base64
@@ -79,7 +79,7 @@ def main():
     text = doc.getText()
     ok = True
 
-    # citação 1 (um item) e citação 2 (dois itens, com locator)
+    # citation 1 (single item) and citation 2 (two items, with locator)
     text.insertString(text.getEnd(), "Prosthetics matter ", False)
     cur = text.createTextCursorByRange(text.getEnd())
     insert_control(doc, text, cur, "(Romero, 2025)",
@@ -93,7 +93,7 @@ def main():
                        {"id": "rec-a", "itemData": ITEM_A}]}))
     text.insertString(text.getEnd(), ".", False)
 
-    # bibliografia Word
+    # Word bibliography
     text.insertControlCharacter(
         text.getEnd(), uno.getConstantByName(
             "com.sun.star.text.ControlCharacter.PARAGRAPH_BREAK"), False)
@@ -101,31 +101,31 @@ def main():
     insert_control(doc, text, cur, "Old Word bibliography",
                    "MENDELEY_BIBLIOGRAPHY")
 
-    ok &= check("2 content controls de citação criados",
+    ok &= check("2 citation content controls created",
                 doc.getContentControls().getCount() == 3)
 
     n, bib = word_import.convert_document(doc)
-    ok &= check("2 clusters importados", n == 2)
-    ok &= check("bibliografia convertida", bib)
-    ok &= check("content controls dissolvidos",
+    ok &= check("2 clusters imported", n == 2)
+    ok &= check("bibliography converted", bib)
+    ok &= check("content controls dissolved",
                 doc.getContentControls().getCount() == 0)
 
     marks = document.get_citation_marks(doc)
-    ok &= check("2 bookmarks de citação", len(marks) == 2)
-    ok &= check("payload com locator preservado",
+    ok &= check("2 citation bookmarks", len(marks) == 2)
+    ok &= check("locator preserved in payload",
                 any(it.get("locator") == "281"
                     for _, c in marks for it in c["items"]))
-    ok &= check("bookmark de bibliografia",
+    ok &= check("bibliography bookmark",
                 doc.getBookmarks().hasByName(payload.BIB_BOOKMARK))
 
     n2, bib2 = document.refresh_document(doc, styles.get_style("apa"), None)
     body = doc.getText().getString()
-    ok &= check("refresh percorreu 2 citações", n2 == 2)
-    ok &= check("bibliografia regenerada", bib2)
-    ok &= check("APA renderizado", "(Romero, 2025)" in body)
-    ok &= check("cluster duplo com locator",
+    ok &= check("refresh visited 2 citations", n2 == 2)
+    ok &= check("bibliography regenerated", bib2)
+    ok &= check("APA rendered", "(Romero, 2025)" in body)
+    ok &= check("two-item cluster with locator",
                 "Ghali, 2008, p. 281" in body)
-    ok &= check("entrada bibliográfica de Ghali",
+    ok &= check("Ghali bibliography entry",
                 "Ghali, S. (2008)." in body)
 
     doc.close(False)

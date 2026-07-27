@@ -63,7 +63,8 @@ def load_config():
 
 
 def save_config(cfg):
-    _save_json("config.json", cfg)
+    # Holds the API client secret, so keep it owner-readable only.
+    _save_json("config.json", cfg, private=True)
 
 
 def load_tokens():
