@@ -113,7 +113,7 @@ def import_word(ctx, frame):
     doc = _doc(frame)
     from . import word_import
     with document.batch_edit(doc, "Mendeley: import from Word"):
-        n, bib = word_import.convert_document(doc)
+        n, bib, removed, left = word_import.convert_document(doc)
         if n or bib:
             try:
                 records = config.load_library(config.load_config())
@@ -133,6 +133,19 @@ def import_word(ctx, frame):
     msg += ("\nThe bibliography was converted as well."
             if bib else "\nNo Word bibliography was found — use "
             "Mendeley > Insert Bibliography if you need one.")
+    if removed:
+        msg += ("\nRemoved %d paragraph%s of the old Word reference list, "
+                "which LibreOffice leaves outside the bibliography control "
+                "when it opens the .docx."
+                % (removed, "" if removed == 1 else "s"))
+    if left:
+        msg += ("\n%d entr%s of the old list stayed: no imported citation "
+                "cites %s, so the generated bibliography cannot include "
+                "%s. Delete %s by hand if they are no longer needed."
+                % (left, "y" if left == 1 else "ies",
+                   "it" if left == 1 else "them",
+                   "it" if left == 1 else "them",
+                   "it" if left == 1 else "them"))
     msg += ("\n\nThis conversion is one-way: the Word add-in will no "
             "longer recognise these citations. Undo (Ctrl+Z) reverses "
             "the whole import if you change your mind.")

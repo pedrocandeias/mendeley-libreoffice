@@ -70,6 +70,24 @@ def any_mendeley_cc(doc):
     return False
 
 
+# The old Word bibliography: one entry inside the content control, the
+# others (and a blank separator) stranded after it, then unrelated text
+# that the import must leave alone.
+BIB_ENTRY_A = ("Ghali, S. (2008). Constructive solid geometry. In "
+               "Introduction to Geometric Computing. Springer.")
+BIB_ENTRY_B = ("Romero, E. (2025). Parametric prosthetic design. IEEE "
+               "Access, 12, 1-9. https://doi.org/10.1109/x")
+BIB_ENTRY_C = "Ghali, S. (2008). Constructive solid geometry (reprint)."
+UNCITED_ENTRY = "Vitruvius. (30 BCE). De architectura. Rome."
+TAIL_TEXT = "Appendix A: interview guide."
+
+
+def new_para(text):
+    text.insertControlCharacter(
+        text.getEnd(), uno.getConstantByName(
+            "com.sun.star.text.ControlCharacter.PARAGRAPH_BREAK"), False)
+
+
 def insert_control(doc, text, cursor, rendered, tag):
     cursor.setString(rendered)
     cc = doc.createInstance("com.sun.star.text.ContentControl")
@@ -77,11 +95,13 @@ def insert_control(doc, text, cursor, rendered, tag):
     text.insertTextContent(cursor, cc, True)
 
 
-def main():
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 2002
-    ctx = connect(port)
-    desktop = ctx.ServiceManager.createInstanceWithContext(
-        "com.sun.star.frame.Desktop", ctx)
+def run(desktop):
+    """Run the scenario against `desktop`; returns True when it passes.
+
+    Split out from main() so it can also be driven from inside a
+    LibreOffice that has no reachable UNO socket (see the module
+    docstring of scripts/run_uno_tests.sh for the usual path).
+    """
     doc = desktop.loadComponentFromURL("private:factory/swriter",
                                        "_blank", 0, ())
 
@@ -104,20 +124,33 @@ def main():
                        {"id": "rec-a", "itemData": ITEM_A}]}))
     text.insertString(text.getEnd(), ".", False)
 
-    # Word bibliography
-    text.insertControlCharacter(
-        text.getEnd(), uno.getConstantByName(
-            "com.sun.star.text.ControlCharacter.PARAGRAPH_BREAK"), False)
+    # Word bibliography. Word wraps the whole entry list in one
+    # block-level content control, but LibreOffice's .docx import leaves
+    # the control around the first entry only and drops the rest into
+    # the document as plain paragraphs — reproduced here, since those
+    # leftovers are what used to survive as a second bibliography.
+    new_para(text)
     cur = text.createTextCursorByRange(text.getEnd())
-    insert_control(doc, text, cur, "Old Word bibliography",
-                   "MENDELEY_BIBLIOGRAPHY")
+    insert_control(doc, text, cur, BIB_ENTRY_A, "MENDELEY_BIBLIOGRAPHY")
+    for para in (BIB_ENTRY_B, "", UNCITED_ENTRY, BIB_ENTRY_C, TAIL_TEXT):
+        new_para(text)
+        text.insertString(text.getEnd(), para, False)
 
     ok &= check("2 citation content controls created",
                 doc.getContentControls().getCount() == 3)
 
-    n, bib = word_import.convert_document(doc)
+    n, bib, removed, left = word_import.convert_document(doc)
     ok &= check("2 clusters imported", n == 2)
     ok &= check("bibliography converted", bib)
+    ok &= check("stray Word bibliography paragraphs removed", removed == 3)
+    ok &= check("uncited entry reported, not deleted", left == 1)
+    body_after_import = doc.getText().getString()
+    ok &= check("old entries gone from the text",
+                BIB_ENTRY_B not in body_after_import
+                and BIB_ENTRY_C not in body_after_import)
+    ok &= check("uncited entry kept", UNCITED_ENTRY in body_after_import)
+    ok &= check("text after the bibliography kept",
+                TAIL_TEXT in body_after_import)
     # LibreOffice cannot delete a content control, so the leftovers are
     # emptied and untagged instead; what matters is that nothing still
     # advertises itself as a Mendeley citation.
@@ -143,14 +176,22 @@ def main():
 
     # Importing again must be a no-op: leftover controls are untagged, so
     # they must not be converted a second time into phantom citations.
-    n3, _ = word_import.convert_document(doc)
-    ok &= check("second import converts nothing", n3 == 0)
+    n3, _, removed3, _ = word_import.convert_document(doc)
+    ok &= check("second import converts nothing", n3 == 0 and removed3 == 0)
     ok &= check("still 2 citations after second import",
                 len(document.get_citation_marks(doc)) == 2)
 
     doc.close(False)
     print("WORD IMPORT " + ("OK" if ok else "FAILED"))
-    return 0 if ok else 1
+    return bool(ok)
+
+
+def main():
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else 2002
+    ctx = connect(port)
+    desktop = ctx.ServiceManager.createInstanceWithContext(
+        "com.sun.star.frame.Desktop", ctx)
+    return 0 if run(desktop) else 1
 
 
 if __name__ == "__main__":

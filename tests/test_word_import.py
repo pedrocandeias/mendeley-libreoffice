@@ -87,5 +87,79 @@ class TestCitationToCluster(unittest.TestCase):
             {"citationItems": [{"itemData": {}}]}))
 
 
+class TestLeftoverEntries(unittest.TestCase):
+    """Recognising old Word bibliography entries left in the text."""
+
+    def setUp(self):
+        cluster = word_import.citation_to_cluster(CITATION)
+        self.prints = word_import.entry_fingerprints([cluster])
+
+    def test_entry_by_title(self):
+        self.assertTrue(word_import.looks_like_entry(
+            "Smith, J. R., & Jones, A. (2020). Deep learning for DNA "
+            "sequence analysis. Nature Methods, 17(4), 321-334.",
+            self.prints))
+
+    def test_entry_by_doi(self):
+        self.assertTrue(word_import.looks_like_entry(
+            "Smith, J. (2020). A shortened title. "
+            "https://doi.org/10.1038/s41592-020-0001-x", self.prints))
+
+    def test_typographic_punctuation_and_wrapping(self):
+        # Word renders quotes and dashes prettily and may wrap entries.
+        self.assertTrue(word_import.looks_like_entry(
+            "Deep learning\n  for DNA sequence analysis", self.prints))
+
+    def test_ordinary_text_is_not_an_entry(self):
+        self.assertFalse(word_import.looks_like_entry(
+            "The next chapter discusses sequencing in general.",
+            self.prints))
+        self.assertFalse(word_import.looks_like_entry("", self.prints))
+
+    def test_short_titles_are_not_fingerprints(self):
+        cluster = word_import.citation_to_cluster(
+            {"citationItems": [{"itemData": {"id": "x", "title": "Hands"}}]})
+        self.assertEqual(word_import.entry_fingerprints([cluster]), set())
+
+    def test_no_fingerprints_matches_nothing(self):
+        self.assertFalse(word_import.looks_like_entry("Anything", set()))
+
+
+E, B, O = word_import.ENTRY, word_import.BLANK, word_import.OTHER
+
+
+class TestSweepPlan(unittest.TestCase):
+    """Deciding how far the stranded old reference list reaches."""
+
+    def test_entries_and_separators_go(self):
+        delete, left = word_import.sweep_plan([E, B, E, B, E])
+        self.assertEqual(delete, [0, 1, 2, 3, 4])
+        self.assertEqual(left, 0)
+
+    def test_stops_at_the_last_entry(self):
+        delete, left = word_import.sweep_plan([E, E, O, O, O])
+        self.assertEqual(delete, [0, 1])
+        self.assertEqual(left, 0)
+
+    def test_steps_over_unrecognised_entries(self):
+        delete, left = word_import.sweep_plan([E, O, O, E])
+        self.assertEqual(delete, [0, 3])       # the two misses stay
+        self.assertEqual(left, 2)
+
+    def test_gap_larger_than_tolerated_ends_the_list(self):
+        kinds = [E] + [O] * (word_import.SWEEP_GAP + 1) + [E]
+        delete, left = word_import.sweep_plan(kinds)
+        self.assertEqual(delete, [0])
+        self.assertEqual(left, 0)
+
+    def test_blanks_do_not_count_towards_the_gap(self):
+        delete, _ = word_import.sweep_plan([E] + [B] * 20 + [E])
+        self.assertEqual(delete, list(range(22)))
+
+    def test_no_entries_at_all(self):
+        self.assertEqual(word_import.sweep_plan([O, B, O]), ([], 0))
+        self.assertEqual(word_import.sweep_plan([]), ([], 0))
+
+
 if __name__ == "__main__":
     unittest.main()

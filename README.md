@@ -205,6 +205,15 @@ citation here. The conversion is one-way — the Word add-in will not
 recognise them afterwards — so if you are not happy with the result,
 close the document without saving.
 
+The old Word reference list is cleared as part of the import, so you end
+up with one bibliography rather than two: LibreOffice, opening the
+`.docx`, keeps only the first entry inside Word's bibliography control
+and leaves the rest of the list in the document as ordinary paragraphs,
+and those strays are removed. Entries that no imported citation cites —
+references added to the list by hand, or whose citation was deleted from
+the text — are left where they are and reported at the end of the
+import, since the generated bibliography cannot reproduce them.
+
 Configuration, OAuth tokens and the library cache are stored in
 `~/.config/mendeley-libreoffice/`, with `config.json` and `tokens.json`
 readable only by you (they hold your API credentials).
