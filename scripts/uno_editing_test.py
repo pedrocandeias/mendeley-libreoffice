@@ -294,6 +294,52 @@ def test_bibliography_italics(desktop, by_id, records):
     return ok
 
 
+def bibliography_cursor(doc):
+    """A cursor spanning the bibliography bookmark's text."""
+    from mlo import payload
+    mark = doc.getBookmarks().getByName(payload.BIB_BOOKMARK)
+    anchor = mark.getAnchor()
+    return anchor.getText().createTextCursorByRange(anchor)
+
+
+def test_bibliography_drops_inherited_formatting(desktop, by_id, records):
+    """Refresh must not keep formatting left on the old entry text.
+
+    A bibliography inserted after an all-caps heading (or hand-formatted
+    once) used to keep that formatting for ever: every refresh rewrote
+    the characters but not their attributes.
+    """
+    from com.sun.star.style.CaseMap import UPPERCASE, NONE as CASE_NONE
+    from com.sun.star.awt.FontWeight import BOLD, NORMAL
+    from mlo import document, styles
+    doc = new_doc(desktop)
+    text = doc.getText()
+    ok = True
+    text.insertString(text.getEnd(), "Body ", False)
+    cite_at_end(doc, by_id, "smith2020deep")
+    doc.getCurrentController().getViewCursor().gotoRange(text.getEnd(), False)
+    document.insert_bibliography_section(doc)
+    document.refresh_document(doc, styles.get_style("apa"), records)
+
+    stale = bibliography_cursor(doc)
+    stale.setPropertyValue("CharCaseMap", UPPERCASE)
+    stale.setPropertyValue("CharWeight", BOLD)
+    stale.setPropertyValue("CharHeight", 22.0)
+
+    document.refresh_document(doc, styles.get_style("apa"), records)
+    fresh = bibliography_cursor(doc)
+    ok &= check("refresh clears inherited uppercase",
+                fresh.getPropertyValue("CharCaseMap") == CASE_NONE)
+    ok &= check("refresh clears inherited bold",
+                fresh.getPropertyValue("CharWeight") == NORMAL)
+    ok &= check("refresh clears inherited font size",
+                abs(fresh.getPropertyValue("CharHeight") - 22.0) > 0.01)
+    ok &= check("italics still applied after the reset",
+                any("Nature Methods" in r for r in italic_runs(doc, 1)))
+    doc.close(False)
+    return ok
+
+
 def main():
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 2002
     ctx = connect(port)
@@ -316,6 +362,8 @@ def main():
     ok &= test_edit_citation(desktop, by_id, records)
     print("--- bibliography italics")
     ok &= test_bibliography_italics(desktop, by_id, records)
+    print("--- bibliography inherited formatting")
+    ok &= test_bibliography_drops_inherited_formatting(desktop, by_id, records)
 
     print("EDITING " + ("OK" if ok else "FAILED"))
     return 0 if ok else 1

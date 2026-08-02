@@ -75,7 +75,11 @@ Mendeley menu appears in Writer.
   proceedings name in IEEE, the book title in a chapter reference, and
   nothing at all in Vancouver. Restyling rewrites the formatting along
   with the text, so no italics are left behind from the previous style,
-  and they survive a `.docx` round-trip through Word.
+  and they survive a `.docx` round-trip through Word. Every refresh also
+  clears any other character formatting sitting on the entries, so a
+  bibliography inserted after an all-caps heading does not stay in
+  capitals for ever; its look comes from the *Bibliography 1* paragraph
+  style, which is where to change it.
 - **Live document model, like Mendeley in Word**: each citation is a
   bookmark (`MLO_C_<key>`) whose cluster payload — compressed JSON
   embedding the cited records — is stored in user-defined document
@@ -117,7 +121,7 @@ Mendeley menu appears in Writer.
 
 1. **Download the extension.** Go to the
    [Releases page](https://github.com/pedrocandeias/mendeley-libreoffice/releases/latest)
-   and, under **Assets**, click the `mendeley-libreoffice-x.y.z.oxt` file (e.g. `mendeley-libreoffice-0.6.1.oxt`) to download it.
+   and, under **Assets**, click the `mendeley-libreoffice-x.y.z.oxt` file (e.g. `mendeley-libreoffice-0.6.2.oxt`) to download it.
    (If the browser warns about an unknown file type, keep it — an `.oxt`
    file is just a LibreOffice extension package.)
 2. **Open LibreOffice Writer.**
@@ -354,8 +358,8 @@ in **all three** of
 then push a matching tag:
 
 ```sh
-git tag v0.6.1
-git push origin v0.6.1
+git tag v0.6.2
+git push origin v0.6.2
 ```
 
 The release workflow refuses to publish unless the tag matches all

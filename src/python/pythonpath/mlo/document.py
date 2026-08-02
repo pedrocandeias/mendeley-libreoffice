@@ -372,17 +372,54 @@ def _bib_anchor(doc):
     return None, None
 
 
+# Direct character formatting the bibliography must not inherit.
+# Entries are rewritten in place on every refresh, so each run would
+# otherwise keep whatever the characters previously occupying those
+# positions carried — the all-caps of a heading the bibliography was
+# inserted after, the bold of a longer entry from the last refresh —
+# and the leftovers land at arbitrary word boundaries. Clearing these
+# makes an entry read from its paragraph style ("Bibliography 1"),
+# which is where a bibliography's look belongs.
+_RESET_CHAR_PROPS = (
+    "CharStyleName",
+    "CharCaseMap",
+    "CharPosture", "CharPostureAsian", "CharPostureComplex",
+    "CharWeight", "CharWeightAsian", "CharWeightComplex",
+    "CharHeight", "CharHeightAsian", "CharHeightComplex",
+    "CharFontName", "CharFontNameAsian", "CharFontNameComplex",
+    "CharColor", "CharBackColor", "CharHighlight",
+    "CharUnderline", "CharUnderlineColor",
+    "CharStrikeout", "CharContoured", "CharShadowed",
+    "CharEscapement", "CharEscapementHeight",
+)
+
+
+def _reset_char_formatting(cursor):
+    """Drop the direct character formatting listed above from a range."""
+    try:
+        cursor.setPropertiesToDefault(_RESET_CHAR_PROPS)
+        return
+    except Exception:
+        pass          # older builds, or a name this build does not know
+    for name in _RESET_CHAR_PROPS:
+        try:
+            cursor.setPropertyToDefault(name)
+        except Exception:
+            continue
+
+
 def _apply_italics(text, entry_start, entry):
     """Italicise the ranges an entry asks for, leaving the rest upright.
 
-    The whole entry is reset to upright first: entries are rewritten in
-    place on every refresh, so without that a run could inherit italics
-    from whatever occupied those characters last time.
+    The whole entry is reset to its paragraph style's formatting first,
+    so nothing carries over from whatever occupied those characters
+    before this refresh.
     """
     spans = getattr(entry, "spans", ())
     try:
         whole = text.createTextCursorByRange(entry_start)
         whole.goRight(len(entry), True)
+        _reset_char_formatting(whole)
         whole.setPropertyValue("CharPosture", NONE)
         for start, end in spans:
             run = text.createTextCursorByRange(entry_start)
